@@ -1,0 +1,333 @@
+# Copyright 2000 by Stem Systems, Inc. All rights reserved.
+
+# If you have this software as part of the prototype release, you are
+# not allowed to distribute any copies to anyone. This software is not
+# to shown to anyone else without prior permission from Stem Systems.
+
+use strict ;
+
+#######################################################
+
+package Stem::Socket ;
+
+use Socket ;
+use Symbol ;
+
+my $attr_spec = [
+
+	{
+		'name'		=> 'object',
+		'required'	=> 1,
+		'type'		=> 'object',
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'server',
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'port',
+		'required'	=> 1,
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'host',
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'method',
+		'default'	=> 'connected',
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'timeout',
+		'default'	=> 10,
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'timeout_method',
+		'default'	=> 'connect_timeout',
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'max_retries',
+		'default'	=> 0,
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'private',
+		'help'		=> <<HELP,
+HELP
+	},
+
+] ;
+
+sub new {
+
+	my( $class ) = shift ;
+
+	my $self = Stem::Class::parse_args( $attr_spec, @_ ) ;
+	return $self unless ref $self ;
+
+	if ( $self->{ 'server' } ) {
+
+		$self->{'type'} = 'server' ;
+		my $listen_err = $self->listen_to() ;
+		return $listen_err unless ref $listen_err ;
+	}
+	else {
+
+		$self->{'type'} = 'client' ;
+
+		my $connect_err = $self->connect_to() ;
+
+		return $connect_err unless ref $connect_err ;
+	}
+
+	return( $self ) ;
+}
+
+sub connect_to {
+
+	my( $self ) = @_ ;
+
+	my $connect_event = Stem::Event::Connect->new(
+				'object'	=> $self,
+				'host'		=> $self->{'host'},
+				'port'		=> $self->{'port'},
+				'timeout'	=> $self->{'timeout'}
+	) ;
+
+	return $connect_event unless ref $connect_event ;
+
+	$self->{'connect_event'} = $connect_event ;
+}
+
+sub connected {
+
+	my( $self, $connected_sock ) = @_ ;
+
+	my $method = $self->{'method'} ;
+
+	delete $self->{'connect_event'} ;
+
+	$self->{'object'}->$method( $connected_sock, $self->{'private'} ) ;
+}
+
+sub connect_timeout {
+
+	my( $self ) = @_ ;
+
+# callback if timeout method is set.
+
+	if ( $self->{'max_retries'} && --$self->{'retry_count'} > 0 ) {
+
+		delete $self->{'connect_event'} ;
+
+		my $method = $self->{'timeout_method'} ;
+		$self->{'object'}->$method( $self->{'private'} ) ;
+		return ;
+	}
+
+	$self->connect_to() ;
+}
+
+sub listen_to {
+
+	my( $self ) = @_ ;
+
+	my $accept_event = Stem::Event::Accept->new(
+				'object'	=> $self,
+				'host'		=> $self->{'host'},
+				'port'		=> $self->{'port'},
+				'method'	=> 'connected',
+	) ;
+
+	return $accept_event unless ref $accept_event ;
+
+	$self->{'accept_event'} = $accept_event ;
+}
+
+sub stop_listening {
+
+	my( $self ) = @_ ;
+
+#print "stop: ", map( "<$_>", caller() ), "\n" ;
+	$self->{'accept_event'}->stop() ;
+}
+
+sub start_listening {
+
+	my( $self ) = @_ ;
+
+	$self->{'accept_event'}->start() ;
+}
+
+sub type {
+	$_[0]->{'type'} ;
+}
+
+sub get_listen_sock {
+
+	my( $host, $port, $listen ) = @_ ;
+
+	unless( $port ) {
+
+		my $err = "get_listen_sock Missing port" ;
+		return $err ;
+	}
+
+# no host will default to localhost, '' will force INADDR_ANY
+
+	$host = 'localhost' unless defined $host ;
+
+# get the host name or IP and convert it to an inet address
+
+	my $inet_addr = length( $host ) ? inet_aton( $host ) : INADDR_ANY ;
+
+#print "HOST [$host]\n" ;
+#print inet_ntoa( $inet_addr ), "\n" ;
+
+	unless( $inet_addr ) {
+
+		my $err = "get_listen_sock Unknown host [$host]" ;
+		return $err ;
+	}
+
+# check if it is a get the service name or numeric port and convert it
+# to a port number
+
+	if ( $port =~ /\D/ and not $port = getservbyname( $port, 'tcp' ) ) {
+
+		my $err = "get_listen_sock: unknown port [$port]" ;
+		return $err ;
+	}
+
+# prepare the socket address
+
+	my $sock_addr = pack_sockaddr_in( $port, $inet_addr ) ;
+
+# get an anonymous glob symbol
+
+	my $listen_sock = gensym ;
+
+# create this socket
+
+	unless ( socket( $listen_sock, PF_INET, SOCK_STREAM,
+			 getprotobyname('tcp') ) ) {
+
+		my $err = "get_listen_sock can't get socket $!" ;
+		return $err ;
+	}
+
+	unless ( setsockopt( $listen_sock, SOL_SOCKET, SO_REUSEADDR, 1) ) {
+		my $err = "get_listen_sock setsockopt REUSEADDR $!" ;
+		return $err ;
+	}
+
+	unless ( bind( $listen_sock, $sock_addr ) ) {
+		my $err = <<ERR ;
+get_listen_sock can't bind to port $port on host $host $!
+ERR
+		return $err ;
+	}
+
+	$listen ||= 5 ;
+
+
+	unless ( listen( $listen_sock, $listen ) ) {
+
+		my $err = <<ERR ;
+get_listen_sock can't listen on port $port on host $host $!
+ERR
+		return $err ;
+	}
+
+	return( bless $listen_sock, 'IO::Socket::INET' ) ;
+}
+
+
+sub get_connected_sock {
+
+	my( $host, $port ) = @_ ;
+
+	unless( $port ) {
+
+		my $err = "get_connected_sock Missing port" ;
+		return $err ;
+	}
+
+	$host ||= 'localhost' ;
+
+# get the host name or IP and convert it to an inet address
+
+	my $inet_addr = defined( $host ) ? inet_aton( $host ) : INADDR_ANY ;
+
+	unless( $inet_addr ) {
+
+		my $err = "get_connected_sock Unknown host [$host]" ;
+		return $err ;
+	}
+
+# check if it is a get the service name or numeric port and convert it
+# to a port number
+
+	if ( $port =~ /\D/ and not $port = getservbyname( $port, 'tcp' ) ) {
+
+		my $err = "get_connected_sock: unknown port [$port]" ;
+		return $err ;
+	}
+
+# prepare the socket address
+
+	my $sock_addr = pack_sockaddr_in( $port, $inet_addr ) ;
+	my $protocol = getprotobyname('tcp');
+
+# get an anonymous glob symbol
+
+	my $connect_sock = gensym ;
+
+# create this socket
+
+	socket( $connect_sock, PF_INET, SOCK_STREAM, $protocol ) ;
+
+# and make it blessed so we can do stuff with it.
+
+	bless $connect_sock, 'IO::Socket::INET' ;
+
+#print "connect $connect_sock", $connect_sock->fileno(), "\n" ;
+
+# make it non-blocking
+
+	$connect_sock->blocking( 0 ) ;
+
+	unless ( $connect_sock->connect( $sock_addr ) ) {
+
+# handle linux false error of 'operation now in progress'
+
+		unless ( $! =~ /Operation now/i ) {
+
+			return "get_connected_sock: connect error $!\n" ;
+		}
+	}
+
+	return $connect_sock ;
+}
+
+1 ;

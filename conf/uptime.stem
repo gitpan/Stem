@@ -1,0 +1,28 @@
+# uptime.stem
+[
+	class	=> 'Stem::Console',
+],
+[
+	class	=> 'Stem::Proc',
+	name	=> 'mon',
+	args	=> [
+		path		=> '/usr/bin/uptime',
+#		path		=> 'foo',
+		cell_attr	=> [
+			'cloneable' => 1,
+			'send_data_on_close' => 1,
+		],
+	],
+],
+[
+	class	=>	'Stem::SockMsg',
+	name	=>	'A',
+	args	=>	[
+		port		=> 6666,
+		server		=> 1,
+		cell_attr	=> [
+			pipe_addr	=> 'mon',
+		],
+	],
+],
+

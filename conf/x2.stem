@@ -1,0 +1,55 @@
+# x.stem
+#
+{
+	class	=>	'Stem::Console',
+},
+{
+	class	=>	'Stem::SockMsg',
+	name	=>	'XT',
+	args	=>	{
+
+		port	=> 6010,
+		server	=> 1,
+		to_cell => 'xsw',
+		to_target => 'xterm',
+	},
+},
+{
+	class	=>	'Stem::SockMsg',
+	name	=>	'XS1',
+	args	=>	{
+		port	=> 6000,
+		to_cell => 'xsw',
+		to_target => 'xs1',
+	},
+},
+{
+	class	=>	'Stem::SockMsg',
+	name	=>	'XS2',
+	args	=>	{
+		port	=> 6000,
+		to_cell => 'xsw',
+		to_target => 'xs2',
+	},
+},
+{
+	class	=>	'Stem::Switch',
+	name	=>	'xsw',
+	args	=>	{
+
+		in_map => {
+
+			'xterm'		=> [ 'xs1' ],
+#			'xterm'		=> [ 'xs1', 'xs2' ],
+			'xs1'		=> 'xterm',
+			'xs2'		=> 'xterm',
+		},
+
+		out_map => {
+
+			'xterm'		=> { to_cell => 'XT' },
+			'xs1'		=> { to_cell => 'XS1' },
+			'xs2'		=> { to_cell => 'XS2' },
+		},
+	},
+},

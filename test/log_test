@@ -1,0 +1,59 @@
+#!/usr/local/bin/perl
+
+use Stem ;
+
+$err = Stem::Log->new( 
+
+	'name'		=> 'foo',
+	'file_path'	=> 'test.log',
+	'format'	=> '%f %X %% %N: %L/$l %T',
+	'strftime'	=> '%A, %B %d, %Y',
+	'filters'	=> [
+
+		'stdout'	=> 1,
+		'forward'	=> 'bar'
+	]
+
+) ;
+
+print "log err: $err\n" if $err ;
+
+$err = Stem::Log->new( 
+	'name'		=> 'bar',
+	'filters'	=> [
+
+		'gt_level'	=> 2,
+
+		'stdout'	=> 1,
+		'flag'		=> 'set',
+
+		'not_match_label'	=> 'erxxr',
+		'match_text'	=> 'hep',
+
+		'stderr'	=> 1,
+
+		'flag'		=> 'set',
+		
+		'var_lt_level'	=> 'oof',
+
+		'tty'		=> 1,
+		'wall'		=> 1,
+		'write'		=> 'uri',
+	]
+) ;
+
+print "log err: $err\n" if $err ;
+
+$Stem::Vars::cmd_args{ 'oof' } = 2 ;
+
+
+$err = Stem::Log::Entry->new( 
+
+	'logs'		=> ['foo'],
+	'level'		=> 4,
+	'label'		=> 'error',
+	'text'		=> "help!!\n",
+) ;
+
+
+print "entry err: $err\n" unless ref $err ;

@@ -1,0 +1,25 @@
+# pipe.stem
+#
+[
+	class	=>	'Stem::Console',
+],
+[
+	class	=>	'Stem::SockMsg',
+	name	=>	'A',
+	args	=>	[
+		port		=> 5555,
+		server		=> 1,
+		cell_info	=> [
+			'pipe_addr'	=> 'B',
+		],
+	],
+],
+[
+	class	=>	'Stem::SockMsg',
+	name	=>	'B',
+	args	=>	[
+		port		=> 6666,
+		cell_info	=> [
+		],
+	],
+],

@@ -1,0 +1,318 @@
+#!/usr/local/bin/perl -w
+
+use strict ;
+
+use Carp ;
+
+
+my $conf_dir = 'intel/conf' ;
+my $master_hub = 'intel.com' ;
+my $master_log_dir = 'intel/logs' ;
+
+my @hub_recs ;
+my %hub_tail_confs ;
+my $master_log_confs ;
+my $master_cron_confs ;
+my $master_remote_confs ;
+
+parse_conf() ;
+
+make_confs() ;
+
+print_hub_confs() ;
+print_master_conf() ;
+
+print_master_boot_conf() ;
+
+exit ;
+
+sub print_master_boot_conf {
+
+	write_file( "$conf_dir/master_boot.stem", <<CONF ) ;
+[
+	class	=>	'Stem::Conf::Load',
+	args	=>	[
+		'file'	=> '$conf_dir/$master_hub.stem',
+	],
+],
+CONF
+
+}
+
+
+sub print_master_conf {
+
+	write_file( "$conf_dir/$master_hub.stem",
+		    $master_log_confs,
+		    $master_cron_confs,
+		    $master_remote_confs
+	) ;
+}
+
+
+sub print_hub_confs {
+
+	foreach my $hub_name ( sort keys %hub_tail_confs ) {
+
+		write_file( "$conf_dir/$hub_name.stem",
+			    $hub_tail_confs{ $hub_name } ) ;
+	}
+}
+
+
+
+sub make_confs {
+
+	foreach my $hub_rec ( @hub_recs ) {
+
+		my $minutes ;
+
+		my $hub_name = $hub_rec->{'hub'} ;
+
+		my $logs_ref = $hub_rec->{'logs'} ;
+
+		print "no logs for $hub_name\n", next unless $logs_ref ;
+
+		my @log_names = sort keys %{$logs_ref} ;
+
+		foreach my $log_name ( @log_names ) {
+
+			my $log_path = $logs_ref->{$log_name}{'path'} ;
+
+			$hub_tail_confs{ $hub_name } .= make_log_tail_conf(
+								$hub_name,
+								$log_name,
+								$log_path ) ;
+
+			$master_log_confs .=
+				make_log_conf( $hub_name, $log_name ) ;
+		}
+
+		$hub_tail_confs{ $hub_name } .=
+				make_switch_conf( @log_names ) ;
+
+		$master_cron_confs .=
+				make_cron_conf( $hub_name, ++$minutes % 60 ) ;
+
+		$master_remote_confs .= make_remote_conf( $hub_name ) ;
+	}
+}
+
+
+sub make_log_conf {
+
+	my( $hub_name, $log_name ) = @_ ;
+
+	return <<LOG ;
+[
+	'class'	=>	'Stem::Log',
+	'args'	=>	[
+
+		'name'	=>	'$hub_name-$log_name',
+		'file'	=>	'$master_log_dir/$hub_name/$log_name',
+	],
+],
+LOG
+
+}
+
+sub make_remote_conf {
+
+	my( $hub_name ) = @_ ;
+
+	return <<REM ;
+[
+	'class'	=>	'Stem::Conf::Remote',
+	'args'	=>	[
+
+		'hub'	=>	'$hub_name',
+		'conf'	=>	'$conf_dir/$hub_name.stem"'
+	],
+],
+REM
+
+}
+
+
+sub make_cron_conf {
+
+	my( $remote_hub, $minutes ) = @_ ;
+
+	return <<CRON ;
+[
+	class	=>	'Stem::Cron',
+	name	=>	'cron',
+	args	=>	[
+
+		'minutes'	=> [ $minutes ],
+		'hours'		=> [ 0 .. 23 ],
+		'msg'	=> [
+
+			'to_hub'	=> '$remote_hub',
+			'to_cell'	=> 'tail_sw',
+			'to_target'	=> 'tail_cmd',
+			'cmd'		=> 'tail',
+		]
+	],
+],
+CRON
+
+}
+
+
+
+
+
+sub make_log_tail_conf {
+
+	my( $hub_name, $log_name, $path ) = @_ ;
+
+	my $reg_name = "tail_$log_name" ;
+
+	return <<LOG ;
+[
+	[
+	'class'	=>	'Stem::LogTail',
+	'name'	=>	'$reg_name',
+	'args'	=>	[
+		'file_path'	=> '$path',
+		'data_log'	=> '$master_hub:$hub_name-$log_name',
+		'status_log'	=> '$master_hub:log_status',
+	],
+],
+LOG
+
+}
+
+
+sub make_switch_conf {
+
+	my( @log_names ) = @_ ;
+
+	my $in_map = join '', map <<IN, @log_names ;
+				'$_',
+IN
+
+	my $out_map = join '', map <<OUT, @log_names ;
+			'$_'	=> { to_cell => 'tail_$_' },
+OUT
+
+	return <<SWITCH ;
+
+[
+	class	=>	'Stem::Switch',
+	name	=>	'tail_sw',
+	args	=>	[
+		in_map => {
+
+			tail_cmd => [
+$in_map
+			],
+		},
+
+		out_map => {
+$out_map
+		},
+	],
+],
+SWITCH
+
+}
+
+
+
+my %line_parsers = (
+
+	'hub'	=> \&parse_hub,
+	'tail'	=> \&parse_tail,
+
+) ;
+
+
+sub parse_conf {
+
+	my ( $line, $hub_rec ) ;
+
+	while( $line = <> ) {
+
+		chomp $line ;
+
+		next if $line =~ /^\s*$/ ;
+
+		next if $line =~ /^#/ ;
+
+		next unless $line =~ /^(\w+):\s+(\S+)\s*(\S*)?\s*$/ ;
+
+
+		my $parse_sub = $line_parsers{$1} ;
+
+		next unless $parse_sub ;
+
+
+
+
+		$parse_sub->( $2, $3 ) ;
+
+
+		if ( lc $1 eq 'hub' ) {
+			
+			push( @hub_recs, $hub_rec ) if $hub_rec ;
+			$hub_rec = {} ;
+
+			parse_hub( $hub_rec, $2, $3 ) ;
+			next ;
+
+		}
+
+		if( lc $1 eq 'log' ) {
+
+			parse_log( $hub_rec, $2, $3 ) ;
+			next ;
+		}
+
+		print "unknown key '$1' in '$line'\n" ;
+	}
+
+	push( @hub_recs, $hub_rec ) if $hub_rec ;
+}
+
+sub parse_hub {
+
+	my( $hub_rec, $host, $hub ) = @_ ;
+
+	$hub = $host unless defined $hub ;
+
+	$hub_rec->{'host'} = $host ;
+	$hub_rec->{'hub'} = $hub ;
+
+	print "Hub: $host $hub\n" ;
+}
+
+sub parse_log {
+
+	my( $hub_rec, $path, $log_name ) = @_ ;
+
+	unless( $log_name ) {
+
+		($log_name) = $path =~ m|([^/]+)$| ;
+	}
+
+	$hub_rec->{'logs'}{$log_name} = {
+			'name'		=> $log_name,
+			'path'		=> $path,
+	}
+}
+
+
+sub write_file {
+
+	my( $file_name ) = shift ;
+
+	local( *FH ) ;
+
+	open( FH, ">$file_name" ) || carp "can't create $file_name $!" ;
+
+	print FH @_ ;
+}
+
+

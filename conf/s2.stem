@@ -1,0 +1,20 @@
+# s2.stem
+#
+{
+	class	=>	'Stem::SockMsg',
+	name	=>	'l1',
+	args	=>	{
+		port	=> 6667,
+		to_cell => 'sw',
+		to_target => 'a',
+	},
+},
+{
+	class	=>	'Stem::SockMsg',
+	name	=>	'l2',
+	args	=>	{
+		port	=> 6666,
+		to_cell => 'sw',
+		to_target => 'a',
+	},
+},

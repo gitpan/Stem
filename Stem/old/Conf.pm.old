@@ -1,0 +1,264 @@
+# Copyright 2000 by Stem Systems, Inc. All rights reserved.
+
+# If you have this software as part of the prototype release, you are
+# not allowed to distribute any copies to anyone. This software is not
+# to shown to anyone else without prior permission from Stem Systems.
+
+
+package Stem::Conf ;
+
+use Data::Dumper ;
+use strict ;
+
+use Stem::Vars ;
+
+Stem::Route::register_class( __PACKAGE__, 'conf' ) ;
+
+my @conf_paths = split ':', $Env{ 'conf_path' } || '.:conf' ;
+if ( my $add_conf_path = $Env{ 'add_conf_path' } ) {
+
+	push @conf_paths, split( ':', $add_conf_path ) ;
+}
+
+my $attr_spec = [
+
+	{
+		'name'		=> 'path',
+		'required'	=> 1,
+		'help'		=> <<HELP,
+This is the full path of the configuration file.
+HELP
+	},
+	
+	{
+		'name'		=> 'to_hub',
+		'help'		=> <<HELP,
+This is the Hub that this configuration will be sent to.
+HELP
+	},
+] ;
+
+# this does not construct anything. just loads a conf file locally or remotely
+
+sub new {
+
+	my( $class ) = shift ;
+
+	my $self = Stem::Class::parse_args( $attr_spec, @_ ) ;
+	return $self unless ref $self ;
+	
+	if ( my $to_hub = $self->{'to_hub'} ) {
+
+		my $conf_data = load_conf_file( $self->{'path'} ) ;
+
+		return $conf_data unless ref $conf_data ;
+
+		my $msg = Stem::Msg->new(
+				'to_hub'	=> $to_hub,
+				'to_cell'	=> __PACKAGE__,
+				'from_cell'	=> __PACKAGE__,
+				'type'		=> 'cmd',
+				'cmd'		=> 'remote',
+				'data'		=> $conf_data,
+		) ;
+
+		$msg->dispatch() ;
+
+		return ;
+	}
+
+	my $err = load_conf_file( $self->{'path'}, 1 ) ;
+
+	return $err if $err ;
+
+	return ;
+}
+
+
+sub load_cmd {
+
+	my( $self, $msg ) = @_ ;
+
+	my $data = $msg->data() ;
+
+	my @conf_names ;
+
+	push( @conf_names, @{$data} ) if ref $data eq 'ARRAY' ;
+	push( @conf_names, ${$data} ) if ref $data eq 'SCALAR' ;
+
+	my $err = load_confs( @conf_names ) ;
+
+	return $err if $err ;
+
+	return ;
+}
+
+sub remote_cmd {
+
+	my( $self, $msg ) = @_ ;
+
+	my $err = configure( $msg->data() ) ;
+
+	return $err if $err ;
+
+	return ;
+}
+
+sub load_conf_file {
+
+	my( $conf_path, $do_conf ) = @_ ;
+
+	-r $conf_path or return "$conf_path can't be read: $!" ;
+
+	my $conf_text = Stem::Util::read_file( $conf_path ) ;
+
+	my @conf_info = eval "($conf_text)" ;
+
+# check for eval error
+
+	if ( $@ ) {
+
+		return "error in conf '$conf_path' $@" ;
+	}
+
+	return \@conf_info unless $do_conf ;
+
+	my $conf_err = configure( \@conf_info ) ;
+
+	return $conf_err if $conf_err ;
+
+	return ;
+}
+
+
+sub load_confs {
+
+	my ( @conf_names ) = @_ ;
+
+	NAME:
+	foreach my $conf_name ( @conf_names ) {
+
+		$conf_name =~ s/\.stem$// ;
+
+		for my $path ( @conf_paths ) {
+
+			my $conf_path = "$path/$conf_name.stem" ;
+
+			next unless -e $conf_path ;
+
+			my $err = load_conf_file( $conf_path, 1 ) ;
+
+			return $err if $err ;
+
+			next NAME ;
+		}
+
+		local( $" ) = "\n\t" ;
+
+		return <<ERR ;
+Can't find config file '$conf_name.stem' in these directories:
+	@conf_paths
+ERR
+	}
+
+	return ;
+}
+
+
+sub configure {
+
+	my ( $conf_list_ref ) = @_ ;
+
+	my $class ;
+
+	foreach my $conf_ref ( @{$conf_list_ref} ) {
+
+#Stem::Event::dump() ;
+
+		unless ( ref $conf_ref eq 'ARRAY' ) {
+
+			return "config entry is not an ARRAY ref\n" .
+					Dumper($conf_ref). "\n" ;
+		}
+
+		my %conf = @{$conf_ref} ;
+
+		unless ( $class = $conf{'class'} ) {
+
+			return "Missing class entry in conf\n" .
+			     Dumper($conf_ref) . "\n" ;
+		}
+
+		no strict 'refs' ;
+
+		unless ( %{"::${class}"} ) {
+
+			my $module = $class ;
+			$module =~ s{::}{/}g ;
+			$module .= '.pm' ;
+
+			while( 1 ) {
+				eval { require $module } and last ;
+
+				if ( $@ =~ /Can't locate $module/ ) {
+
+					next if $module =~ s{/\w+\.pm$}{.pm} ;
+
+					die
+				 "Conf: can't find module for class $class" ;
+				}
+
+				return "eval $@\n" if $@ ;
+			}
+
+#print "required $module\n" ;
+		}
+
+# get the config name for registration
+
+		my $reg_name = $conf{'name'} ;
+
+# if arguments, call the method or new to get a possible object
+
+		if ( my $args = $conf{'args'} ) {
+
+			unless ( ref $args eq 'ARRAY' ) {
+
+				return "args is not an ARRAY ref\n" .
+					Dumper($conf_ref). "\n" ;
+			}
+
+			my $method = $conf{'method'} || 'new' ;
+
+# register if we have an object
+
+			if ( my $obj = $class->$method(
+						'reg_name' => $reg_name,
+						@{$args} ) ) {
+
+				return $obj unless ref $obj ;
+
+#print "conf [$obj]\n" ;
+
+# register the object by the conf name or the class
+				Stem::Route::register_cell(
+						$obj,
+						$reg_name || $class ) ;
+			}
+
+			next ;
+		}
+
+# or else register the class if we have a name
+
+#print "C [$class] [$reg_name]\n" ;
+
+		Stem::Route::register_class( $class, $reg_name ) ;
+	}
+
+#Stem::Event::dump() ;
+
+	return ;
+}
+
+1 ;

@@ -1,0 +1,168 @@
+
+			  Installation Of Stem
+
+Installation of Stem is simple and is done by executing the included
+script install.pl. Just execute it with the perl binary that is already
+on your system. It will use configuration data from the installed perl
+to configure Stem.
+
+	perl install.pl
+
+The script first checks that the tarball was extracted cleanly and all
+the files in its manifest are there.
+
+Then it will first query you about the paths to store the Stem
+executables, Perl modules, Stem configuration files and the path to a
+window emulation program (e.g. xterm). The default answers are probably
+fine on your system but you can select other paths if you wish.
+
+Then you will be asked about installing standard Perl modules. These can
+be installed from the CPAN or from the Stem tarball. The install script
+can do it either way for you.
+
+Stem comes with a set of demonstration configurations and scripts which
+drive them. These can be optionally installed and you will be asked if
+you want to do that.
+
+There is also an optional extra program called ssfe (Split Screen Front
+End) that makes demo scripts run in an window with command history and
+editing. It is not required to run any Stem program or demo but it is a
+useful tool to have. If you want it installed, it will run its own
+installation in another window. The installation window ends with a long
+sleep so you can check its results. Exit or kill the window to continue
+and finish the Stem installation itself.
+
+If you need to uninstall the files Stem just installed, all of them are
+listed in the file 'installed_files'. You can delete them all with the
+make command:
+
+	make uninstall_stem
+
+
+			  Manual Installation
+
+Here are the steps needed to manually install Stem. These are not
+supported anymore so please use the install script. This is more for
+documentation purposes of what the install script does.
+
+
+1. Install Event.pm
+2. Fix path to perl in the executables
+3. Put the executables in $PATH
+4. Set the path to Stem modules
+5. Set the path to Stem configuration files.
+6. Install ssfe (split screen front end)
+7. Set path to xterm
+
+Some of those steps are optional depending on how you want to use or
+explore stem. Event.pm must be installed. You can do all or some of the
+rest of the steps in various ways. The instructions below assume the
+tarball unpacks into a dir with the name stem-0.NN (where NN is the
+version number). That directory path will be referred to as $STEM. Also
+$PATH refers to your shell's list of paths to search for executables.
+Read the documentation on your shell to see how to change that.
+
+
+1. Install Event.pm
+
+This is a CPAN module that is used by Stem. It is included in
+modules/Event-0.77.tar.gz. Unpack the tarball and build it as you would
+any other CPAN module:
+
+perl Makefile.PL
+make
+make test
+make install
+
+or build it fresh from CPAN with:
+
+perl -MCPAN -e 'install Event'
+
+The latest version on CPAN has some minor changes which don't affect
+Stem. Use whichever is easier for you.
+
+
+2. Fix path to perl in the executables
+
+In the $STEM/bin directory are the executables of Stem. The only
+critical executable is run_stem which is the Stem startup script. The
+rest are either utilities or demo programs. All these scripts need to
+have their #!  lines fixed to your perl location. The Makefile in this
+directory has an entry to do this. Run this command:
+
+make fix_perl
+
+That should convert the /usr/local/bin/perl path to what you are
+using. Check to see that this worked correctly. If you have a problem,
+you can edit the files or run the appropriate perl one-liner
+yourself. The Makefile one can be modified as needed.
+
+
+3. Put the executables in $PATH
+
+You have to have the Stem scripts in your $PATH somewhere. The two
+choices are to copy them to an existing directory in your $PATH, or
+adding the $STEM/bin directory to $PATH. Choose whichever suits you best.
+If you are not using the demo scripts, then you only need to copy
+run_stem to a directory in $PATH.
+
+
+4. Set the path to Stem modules
+
+The run_stem script needs to find the Stem modules which are
+$STEM/Stem.pm and in $STEM/Stem/. You can install those in a directory
+that perl searches (run perl -V to find the @INC dirs). Or you can
+uncomment and edit the use lib command at the beginning of run_stem to
+point to the $STEM directory. Another choice is to do all your Stem work
+or evaluation inside the $STEM directory, since . is always in @INC.
+
+
+5. Set the path to Stem configuration files.
+
+All of the demo scripts use configuration files in the $STEM/conf/
+directory. If you run them from $STEM, they will be found as Stem
+searches for its configuration files in . and conf by default. You can
+change the configuration search path with an environment variable or on
+the command line of run_stem. The STEM_CONF_PATH environment variable
+should have a : separated list of directories in which to search for
+Stem configuration files.
+
+If you want to change the path when you use run_stem just use the
+'conf_path' command line argument and the same : separated list of paths
+for its value:
+
+run_stem conf_path=.:/mypath/to/stem/conf config_name
+
+You can also add paths instead of overriding them with the
+'add_conf_path' command line argument (same syntax as conf_path).
+
+
+6. Install ssfe (split screen front end)
+
+ssfe runs a line-oriented program in the background, and provides a full
+screen interface for it.  The bottom line of the screen is the input
+line, which you can edit using emacs-like keys and it maintains a input
+line history; above that is the status bar, and the scrolling area with
+the program's output.
+
+ssfe is not required for Stem. Its use is enabled on the all the demo
+scripts with the -s option. It makes them look better and makes it
+easier to enter and edit commands in Stem.
+
+It is located in the $STEM/extras/sirc-2.211.tar.gz tarball. Unpack that
+and you can run the install script which will walk you through building
+ssfe. You can skip installing sirc (a Perl based IRC client). But
+install ssfe in some place in your $PATH so it can be used by the demo
+scripts. The ssfe install script will do this for you or you can do it
+manually after building it.
+
+
+7. Set path to xterm
+
+xterm is used by the demo scripts. If you don't want to use xterm, edit
+the scripts to use some other terminal emulator program. If you leave
+them as is, then make sure xterm is in your $PATH. Here are some common
+locations for it:
+
+linux		/usr/bin/X11/xterm
+solaris		/usr/openwin/bin/xterm

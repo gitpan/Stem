@@ -1,0 +1,35 @@
+# uptime_server.stem
+[
+	class	=> 'Stem::Console',
+],
+[
+	class => 'Stem::Hub',
+	name  => 'uptime_server',
+	args  => [],
+],
+
+
+# Set the portal to be a server:
+# listen for portal connections from any host
+# the port defaults to 10000 but can be set here
+
+[
+	class => 'Stem::Portal',
+	name  => 'listener',
+	args  => [
+		'server' => 1,
+		'host' => '',
+	],
+],
+
+[
+	class	=> 'Stem::Proc',
+	name	=> 'mon',
+	args	=> [
+		path		=> '/usr/bin/uptime',
+		cell_attr	=> [
+			'cloneable' => 1,
+			'send_data_on_close' => 1,
+		],
+	],
+],

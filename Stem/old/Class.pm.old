@@ -1,0 +1,139 @@
+# Copyright 2000 by Stem Systems, Inc. All rights reserved.
+
+# If you have this software as part of the prototype release, you are
+# not allowed to distribute any copies to anyone. This software is not
+# to shown to anyone else without prior permission from Stem Systems.
+
+#  arg attributes
+
+#  	name
+#  	class		create a new object of this class
+#  			arg value is array ref of attribute pairs
+#  	class_args	array ref of extra arg attribute pairs for this class
+#  	required	arg is required
+#  	default		default value (undef values not allowed)
+#  	type		arg type - used for checking and conversions
+
+
+use strict ;
+
+package Stem::Class ;
+
+use Data::Dumper ;
+
+use Stem::Vars ;
+
+sub parse_args {
+
+	my( $attr_spec, %args_in ) = @_ ;
+
+	my( $package ) = caller ;
+
+#print "PACK $package\n" ;
+
+	my $obj = bless {}, $package ;
+
+#print Dumper( $attr_spec ) ;
+#print "class args ", Dumper( \%args_in ) ;
+
+	my( $cell_info_obj, $cell_info_name ) ;
+
+	foreach my $field ( @{$attr_spec} ) {
+
+		my $field_name = $field->{'name'} or next ;
+
+		my $field_val = $args_in{ $field_name } ;
+
+		if ( my $class = $field->{'class'} ) {
+
+			$field_val ||= [] if $field->{'always_create'} ;
+
+			next unless ref $field_val eq 'ARRAY' ;
+
+			my @class_args = ( @{$field_val},
+					   @{$field->{'class_args'} || []} ) ;
+
+# print "args @class_args\n" ;
+
+			$field_val = $class->new( @class_args ) ;
+
+			return $field_val unless ref $field_val ;
+
+# handle special case for Stem::Cell
+
+			if ( $class eq 'Stem::Cell' ) {
+
+				$cell_info_obj = $field_val ;
+				$cell_info_name = $field_name ;
+			}
+		}
+
+# handle a callback type attribute. it does all the parsing and object stuffing
+# the callback should return 
+
+		if ( my $callback = $field->{'callback'} and $field_val ) {
+
+
+			my $cb_err = $callback->( $obj,
+						  $field_name, $field_val ) ;
+
+			return $cb_err if $cb_err ;
+
+			next ;
+		}
+
+#####################
+#####################
+#####################
+# switch on type
+# do more processing and checking based on type of arg
+#####################
+#####################
+#####################
+
+		unless( defined $field_val ) {
+
+			if ( $field->{'required'} ) {
+
+				return <<ERR ;
+Missing required field '$field_name' for class $package
+ERR
+			}
+
+			$field_val = $field->{'default'}
+					if exists $field->{'default'} ;
+		}
+
+		if ( my $env_name = $field->{'env'} ) {
+
+			$field_val = $Env{$env_name} if 
+				exists( $Env{$env_name} ) ;
+		}
+
+#print "field $field_name [$field_val]\n" ;
+
+		if ( defined $field_val ) {
+
+			$obj->{$field_name} = $field_val ;
+		}
+	}
+
+	if ( $cell_info_obj ) {
+
+		return <<ERR unless $args_in{ 'reg_name' } ;
+Missing 'name' in configuration for class $package.
+It is required for use by Stem::Cell
+ERR
+
+		$cell_info_obj->cell_init( $obj,
+					   $args_in{ 'reg_name' },
+					   $cell_info_name
+		) ;
+	}
+
+#print "class obj ", Dumper( $obj ) ;
+
+	return $obj ;
+}
+
+1 ;

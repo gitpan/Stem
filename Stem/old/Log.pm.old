@@ -1,0 +1,542 @@
+# Copyright 2000 by Stem Systems, Inc. All rights reserved.
+
+# If you have this software as part of the prototype release, you are
+# not allowed to distribute any copies to anyone. This software is not
+# to shown to anyone else without prior permission from Stem Systems.
+
+
+use IO::File ;
+
+use strict ;
+
+package Stem::Log::Entry ;
+
+use Data::Dumper ;
+
+Stem::Route::register_class( __PACKAGE__, 'entry' ) ;
+
+# logical logs
+
+my %logs ;
+
+my $attr_spec_entry = [
+
+	{
+		'name'		=> 'text',
+		'default'	=> '',
+		'help'		=> <<HELP,
+Text for this log entry. Can be filtered with the rule 'match_text'.
+HELP
+	},
+	{
+		'name'		=> 'label',
+		'default'	=> 'info',
+		'help'		=> <<HELP,
+Label for this log entry. This is used to tag log entries from
+different sources. Can be filtered with the rule 'match_label'.
+HELP
+	},
+	{
+		'name'		=> 'level',
+		'default'	=> '1',
+		'help'		=> <<HELP,
+Severity level for this log entry. It is an integer with 0 being the
+most severe level and 10 the lowest (this maps to the levels of
+syslog). There are several rules which can filter based on the level.
+HELP
+	},
+	{
+		'name'		=> 'logs',
+		'type'		=> 'list',
+		'help'		=> <<HELP,
+This is a list of logical logs where this entry is submitted. The
+first one is considered the original log. If this is not passed, then
+the entry must be explicitly submitted by the submit method.
+HELP
+	},
+] ;
+
+
+
+sub new {
+
+	my( $class ) = shift ;
+
+	my $self = Stem::Class::parse_args( $attr_spec_entry, @_ ) ;
+	return $self unless ref $self ;
+
+	$self->{'time'} = time() ;
+	$self->{'hub_name'} = $Stem::Vars::Hub_name ;
+	$self->{'host_name'} = $Stem::Vars::Host_name ;
+	$self->{'program_name'} = $Stem::Vars::Program_name ;
+
+	if ( my $logs_attr = $self->{'logs'} ) {
+
+		my @logs = (ref $logs_attr eq 'ARRAY') ?
+					@{$logs_attr} : $logs_attr ;
+
+		$self->submit( @logs ) ;
+	}
+
+	return $self ;
+}
+
+
+sub submit {
+
+	my( $self, @logs ) = @_ ;
+
+#print "submit @logs\n" ;
+
+	foreach my $log_name ( @logs ) {
+
+		if ( $log_name =~ /^(\w+):(\w+)$/ ) {
+
+			my $to_hub = $1 ;
+			my $to_log = $2 ;
+
+			my $log_msg = Stem::Msg->new(
+					'to_hub'	=> $to_hub,
+					'to_cell'	=> __PACKAGE__,
+					'from_cell'	=> __PACKAGE__,
+					'log'		=> $to_log,
+					'type'		=> 'log',
+					'data'		=> $self,
+			) ;
+
+#print $log_msg->dump( 'SUBMIT REMOTE LOG' ) ;
+
+			$log_msg->dispatch() ;
+
+			next ;
+		}
+
+		my $log_obj = $logs{ $log_name } ;
+
+		next unless $log_obj ;
+
+#print "local SUBMIT to $log_name\n" ;
+
+#print "SUB A[$log_name] L[$self->{'log'}]\n" ;
+
+
+		my $entry_copy ||= { %{$self} } ;
+
+		$entry_copy->{'log_name'} = $log_name ;
+		$entry_copy->{'orig_log_name'} ||= $log_name ;
+		$entry_copy->{'entry_obj'} = $self ;
+
+		$log_obj->submit( $entry_copy ) ;
+	}
+}
+
+# this method is how a remote log message is delivered locally
+
+sub log_in {
+
+	my( $class, $msg ) = @_ ;
+
+#print $msg->dump( 'LOG IN' ) ;
+	my $entry = $msg->data() ;
+
+	print "$entry\n" unless ref $entry ;
+
+	$entry->submit( $msg->log() ) ;
+
+	return ;
+}
+
+
+package Stem::Log ;
+
+use Data::Dumper ;
+
+use Stem::Vars ;
+
+Stem::Route::register_class( __PACKAGE__, 'log' ) ;
+
+#########################
+#########################
+# add stuff for file rotation, number suffix, etc.
+#########################
+#########################
+
+my $attr_spec_log = [
+
+	{
+		'name'		=> 'name',
+		'required'	=> 1,
+		'help'		=> <<HELP,
+Name of this logical log.
+HELP
+	},
+	{
+		'name'		=> 'path',
+		'help'		=> <<HELP,
+The full path to the file for this logical log.
+HELP
+	},
+	{
+		'name'		=> 'format',
+		'default'	=> '%T',
+		'help'		=> <<HELP,
+Format to print entries for this logical log. See elsewhere in this
+document for the details of the sprintf-like format'
+HELP
+	},
+	{
+		'name'		=> 'strftime',
+		'default'	=> '%C',
+		'help'		=> <<HELP,
+Format passed to strftime to print the %f entry format.
+HELP
+	},
+	{
+		'name'		=> 'use_gmt',
+		'default'	=> 1,
+		'type'		=> 'boolean',
+		'help'		=> <<HELP,
+Make strftime use gmtime instead of localtime to break the log entry
+timestamp into its parts.
+HELP
+	},
+	{
+		'name'		=> 'filters',
+		'help'		=> <<HELP,
+List of key/value pairs. The keys are either rules, actions or 'flag'.
+The value is passed to the function for the key. Use a list for complex values.
+HELP
+	},
+
+] ;
+
+sub new {
+
+	my( $class ) = shift ;
+
+	my $self = Stem::Class::parse_args( $attr_spec_log, @_ ) ;
+	return $self unless ref $self ;
+
+	if ( my $file = $self->{'path'} ) {
+
+		my $log_fh = IO::File->new( ">>$file" ) or
+			 return "$class: can't open log file $file $!" ;
+
+		$log_fh->autoflush( 1 ) ;
+
+print "opened log $file\n" ;
+
+		$self->{'fh'} = $log_fh ;
+	}
+
+	$logs{ $self->{'name'} } = $self ;
+
+	return ;
+}
+
+# table to convert filter keys to code refs to execute
+# these are all passed the $entry hash ref, the filter arg and the log object
+
+my %filter_to_code = (
+	
+	'match_text'	=> sub { $_[0]->{'text'}  =~ /$_[1]/ },
+	'match_label'	=> sub { $_[0]->{'label'} =~ /$_[1]/ },
+
+	'eq_level'	=> sub { $_[0]->{'level'} == $_[1] },
+	'lt_level'	=> sub { $_[0]->{'level'} <  $_[1] },
+	'le_level'	=> sub { $_[0]->{'level'} <= $_[1] },
+	'gt_level'	=> sub { $_[0]->{'level'} >  $_[1] },
+	'ge_level'	=> sub { $_[0]->{'level'} >= $_[1] },
+
+	'env_eq_level'	=> sub { $_[0]->{'level'} == ( $Env{ $_[1] } || 0 ) },
+	'env_lt_level'	=> sub { $_[0]->{'level'} >  ( $Env{ $_[1] } || 0 ) },
+	'env_le_level'	=> sub { $_[0]->{'level'} >= ( $Env{ $_[1] } || 0 ) },
+	'env_gt_level'	=> sub { $_[0]->{'level'} <  ( $Env{ $_[1] } || 0 ) },
+	'env_ge_level'	=> sub { $_[0]->{'level'} <= ( $Env{ $_[1] } || 0 ) },
+
+	'file'		=> \&_action_file,
+	'stdout'	=> \&_action_stdout,
+	'stderr'	=> \&_action_stderr,
+	'tty'		=> \&_action_tty,
+	'tty_msg'	=> \&_action_tty_msg,
+#	'msg'		=> \&_action_msg,
+	'write'		=> \&_action_write,
+	'wall'		=> \&_action_wall,
+	'email'		=> \&_action_email,
+	'page'		=> \&_action_page,
+	'forward'	=> \&_action_forward,
+
+	'custom'	=> \&_custom_filter,
+) ;
+
+my %flag_to_code = (
+
+	'set'		=> sub { $_[0]->{'flag'} = 1 },
+	'clear'		=> sub { $_[0]->{'flag'} = 0 },
+	'invert'	=> sub { $_[0]->{'flag'} = ! $_[0]->{'flag'} },
+	'inverted_test'	=> sub { $_[0]->{'invert_test'} = 1 },
+	'normal_test'	=> sub { $_[0]->{'invert_test'} = 0 },
+	'or'		=> sub { $_[0]->{'or'} = 1 },
+	'and'		=> sub { $_[0]->{'or'} = 0 },
+) ;
+
+sub submit {
+
+	my( $self, $entry ) = @_ ;
+
+	$entry->{'format'} = $self->{'format'} ;
+	$entry->{'strftime'} = $self->{'strftime'} ;
+	$entry->{'use_gmt'} = $self->{'use_gmt'} ;
+
+	my $filter_list = $self->{'filters'} ;
+
+	unless ( $filter_list ) {
+
+# no filter so the default is to log to the file
+
+		_action_file( $entry, 0, $self ) ;
+
+		return ;
+	}
+
+# start with all actions enabled
+
+	$entry->{'flag'} = 1 ;
+
+# scan the filter list by pairs
+
+	for( my $i = 0 ; $i < @{$filter_list} ; $i += 2 ) {
+
+		my ( $filter_key, $filter_arg ) =
+				@{$filter_list}[$i, $i + 1] ;
+
+# handle the flag operations first.
+
+		if ( $filter_key eq 'flag' ) {
+
+			if ( my $code = $flag_to_code{ $filter_arg } ) {
+
+				$code->( $entry ) ;
+			}
+
+			next ;
+		}
+
+# skip this filter rule/action if the flag is false
+
+		next unless $entry->{'flag'} && ! $entry->{'invert_test'} ;
+
+# check for and remove a 'not_' prefix
+
+		my $not = $filter_key =~ s/^not_(\w+)$/$1/ ;
+
+		my $code = $filter_to_code{ $filter_key } ;
+
+		next unless $code ;
+
+# execute the rule/action code
+
+		my $flag_val = $code->( $entry, $filter_arg, $self ) ;
+
+# don't mung the flag unless we get a boolean return
+
+		next unless defined( $flag_val ) ;
+
+# invert the returned flag value if needed
+
+		$flag_val = ! $flag_val if $not ;
+
+# do the right boolean op
+
+		if ( $entry->{'or'} ) {
+
+			$entry->{'flag'} ||= $flag_val ;
+		}
+		else {
+
+			$entry->{'flag'} &&= $flag_val ;
+		}
+	}
+}
+
+
+sub _format_entry {
+
+	my( $entry ) = @_ ;
+
+	my $formatted = $entry->{'format'} ;
+
+	$formatted =~ s/%(.)/_format_field( $entry, $1 )/seg ;
+
+	return $formatted ;
+}
+
+my %letter_to_key = (
+
+	'T'	=> 'text',
+	't'	=> 'time',
+	'L'	=> 'label',
+	'l'	=> 'level',
+	'H'	=> 'hub_name',
+	'h'	=> 'host_name',
+	'P'	=> 'program_name',
+) ;
+
+sub _format_field {
+
+	my( $entry, $letter ) = @_ ;
+
+	if ( my $key = $letter_to_key{ $letter } ) {
+
+		return $entry->{$key} ;
+	}
+
+	if ( $letter eq 'f' ) {
+
+		require POSIX ;
+
+		$entry->{'formatted_time'} ||= do {
+
+			my @times = ( $entry->{'use_gmt'} ) ?
+					gmtime( $entry->{'time'} ) :
+					localtime( $entry->{'time'} ) ;
+
+			POSIX::strftime( $entry->{'strftime'}, @times ) ;
+		} ;
+
+		return $entry->{'formatted_time'} ;
+	}
+
+	return $letter ;
+}
+
+sub _action_file {
+
+	my( $entry, $arg, $log_obj ) = @_ ;
+
+	my $fh = $log_obj->{'fh'} ;
+
+	$fh or return ;
+
+	$entry->{'formatted'} ||= _format_entry( $entry ) ;
+
+	print $fh $entry->{'formatted'} ;
+
+	return ;
+}
+
+sub _action_stdout {
+
+	my( $entry ) = shift ;
+
+	$entry->{'formatted'} ||= _format_entry( $entry ) ;
+
+	print STDOUT $entry->{'formatted'} ;
+
+	return ;
+}
+
+sub _action_stderr {
+
+	my( $entry ) = shift ;
+
+	$entry->{'formatted'} ||= _format_entry( $entry ) ;
+
+	print STDERR $entry->{'formatted'} ;
+
+	return ;
+}
+
+
+sub _action_write {
+
+	my( $entry, $arg ) = @_ ;
+
+	$entry->{'formatted'} ||= _format_entry( $entry ) ;
+
+	my @users = ref $arg ? @{$arg} : $arg ;
+
+	foreach my $user ( @users ) {
+
+		system <<SYS ;
+/bin/echo '$entry->{'formatted'}' | write $user >/dev/null 2>&1 &
+SYS
+	}
+
+	return ;
+}
+
+sub _action_wall {
+
+	my( $entry ) = shift ;
+
+	$entry->{'formatted'} ||= _format_entry( $entry ) ;
+
+
+	system <<SYS ;
+/bin/echo '$entry->{'formatted'}' | wall &
+SYS
+
+	return ;
+}
+
+# handle to write log entries to /dev/tty
+
+my $tty_fh ;
+
+sub _action_tty {
+
+	my( $entry ) = shift ;
+
+	$tty_fh ||= IO::File->new( ">/dev/tty" ) ;
+
+	unless( $tty_fh ) {
+
+		warn "can't open log file /dev/tty $!" ;
+		return ;
+	}
+
+	$entry->{'formatted'} ||= _format_entry( $entry ) ;
+
+	print $tty_fh $entry->{'formatted'} ;
+
+	return ;
+}
+
+sub _action_tty_msg {
+
+	my( $entry ) = shift ;
+
+	$entry->{'formatted'} ||= _format_entry( $entry ) ;
+
+	return unless Stem::TtyMsg->can( 'write' ) ;
+
+	Stem::TtyMsg->write( $entry->{'formatted'} ) ;
+
+	return ;
+}
+
+sub _action_forward {
+
+	my( $entry, $arg ) = @_ ;
+
+#print "forward $arg\n" ;
+
+	my @logs = ref $arg ? @{$arg} : $arg ;
+
+	my $entry_obj = $entry->{'entry_obj'} ;
+
+	$entry_obj->submit( @logs ) ;
+
+	return ;
+}
+
+sub _custom_filter {
+
+	my( $entry, $arg ) = @_ ;
+
+
+	return ;
+}
+
+1 ;

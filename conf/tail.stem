@@ -1,0 +1,41 @@
+# tail.stem
+#
+[
+	'class'	=>	'Stem::Console',
+],
+[
+	'class'	=>	'Stem::Hub',
+	'name'	=>	'tail',
+	'args'	=>	[],
+],
+[
+	'class'	=>	'Stem::LogTail',
+	'name'	=>	'foo',
+	'args'	=>	[
+		'path'		=> '/wrk/2.6/stem/tail/foo',
+		'repeat_interval' => 10,
+		'data_log'	=> 'bar',
+		'status_log'	=> 'bar_status',
+	],
+],
+[
+	'class'	=>	'Stem::Log',
+	'args'	=>	[
+
+		'name'		=> 'bar',
+		'path'		=> '/wrk/2.6/stem/tail/bar',
+	],
+],
+[
+	'class'	=>	'Stem::Log',
+	'args'	=>	[
+
+		'name'		=> 'bar_status',
+		'path'		=> '/wrk/2.6/stem/tail/bar_status',
+
+		'filters'	=> [
+			stdout	=> 1,
+			file	=> 1,
+		],
+	],
+],

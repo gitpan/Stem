@@ -1,0 +1,239 @@
+# Copyright 2000 by Stem Systems, Inc. All rights reserved.
+
+# If you have this software as part of the prototype release, you are
+# not allowed to distribute any copies to anyone. This software is not
+# to shown to anyone else without prior permission from Stem Systems.
+
+####################################
+####################################
+# TODO
+#
+# add idle timeouts (timer event, use shutdown method, reset on all i/o)
+# add shutdown command method which can take a message
+# add max client support
+# add unix sockets (add to Stem::Socket.pm)
+####################################
+####################################
+
+
+package Stem::SockMsg ;
+
+use strict ;
+
+use Data::Dumper ;
+
+use Stem::Socket ;
+use Stem::Route qw( :cell ) ;
+use base 'Stem::Cell' ;
+
+my $attr_spec = [
+
+	{
+		'name'		=> 'reg_name',
+		'help'		=> <<HELP,
+The registration name for this Cell
+HELP
+	},
+
+	{
+		'name'		=> 'host',
+		'help'		=> <<HELP,
+Host address to listen on or connect to
+HELP
+	},
+
+	{
+		'name'		=> 'port',
+		'required'	=> 1,
+		'help'		=> <<HELP,
+Port address to listen on or connect to
+HELP
+	},
+
+	{
+		'name'		=> 'server',
+		'type'		=> 'boolean',
+		'help'		=> <<HELP,
+Mark this Cell as a server (listens for connections)
+HELP
+	},
+
+	{
+		'name'		=> 'connect_now',
+		'type'		=> 'boolean',
+		'help'		=> <<HELP,
+Connect upon Cell creation
+HELP
+	},
+
+	{
+		'name'		=> 'log_name',
+		'help'		=> <<HELP,
+Log to send connection status to
+HELP
+	},
+
+	{
+		'name'		=> 'cell_info',
+		'class'		=> 'Stem::Cell',
+		'help'		=> <<HELP,
+Argument list passed to Stem::Cell for this Cell
+HELP
+	},
+
+] ;
+
+
+sub new {
+
+	my( $class ) = shift ;
+
+	my $self = Stem::Class::parse_args( $attr_spec, @_ ) ;
+	return $self unless ref $self ;
+
+
+	if ( $self->{'server'} ) {
+		my $sock_obj = Stem::Socket->new( 
+				'object'	=> $self,
+				'host'		=> $self->{'host'},
+				'port'		=> $self->{'port'},
+				'server'	=> 1,
+		) ;
+
+		return $sock_obj unless ref $sock_obj ;
+
+		$self->{'sock_obj'} = $sock_obj ;
+	}
+	elsif ( $self->{'connect_now'} ) {
+
+		$self->connect() ;
+	}
+
+	$self->cell_set_args(
+			'host'		=> $self->{'host'},
+			'port'		=> $self->{'port'},
+			'server'	=> $self->{'server'},
+	) ;
+
+#print  "Sock\n", Dumper( $self ) ;
+
+	return( $self ) ;
+}
+
+sub connected {
+
+	my( $self, $connected_sock ) = @_ ;
+
+	my $type = $self->{'sock_obj'}->type() ;
+
+	my $info = sprintf( <<INFO,
+SockMsg connected
+Type:	$type
+Local:	%s:%d
+Remote:	%s:%d
+INFO
+				$connected_sock->sockhost(),
+				$connected_sock->sockport(),
+				$connected_sock->peerhost(),
+				$connected_sock->peerport(),
+	) ;
+
+#print "\nSOCK $info\n" ;
+
+	if ( my $log_name = $self->{ 'log_name' } ) {
+
+#print "MSG LOG\n" ;
+
+		Stem::Log::Entry->new(
+				'logs'	=> $log_name,
+				'text'	=> "Connected\n$info",
+		) ;
+	}
+
+	$self->cell_set_args(
+			'fh'		=> $connected_sock,
+			'aio_args'	=>
+				[ 'fh'	=> $connected_sock ],
+			'info'		=> $info,
+	) ;
+
+	$self->cell_trigger() ;
+}
+
+# this method is called after the cell is triggered. this cell can be
+# the origianal cell or a cloned one.
+
+sub triggered_cell {
+
+	my( $self ) = @_ ;
+
+	return "SockMsg: can't connect a server socket" if $self->{'server'} ;
+
+	print "SockMsg triggered\n" ;
+
+	return $self->connect() ;
+}
+
+sub connect {
+
+	my( $self ) = @_ ;
+
+	my $host = $self->cell_get_args( 'host' ) || $self->{'host'} ;
+	my $port = $self->cell_get_args( 'port' ) || $self->{'port'} ;
+
+########################
+########################
+## handle connect timeouts
+########################
+########################
+
+	my $sock_obj = Stem::Socket->new( 
+			'object'	=> $self,
+			'host'		=> $host,
+			'port'		=> $port,
+	) ;
+
+	return $sock_obj unless ref $sock_obj ;
+
+	$self->{'sock_obj'} = $sock_obj ;
+
+	return ;
+}
+
+
+# we handle the socket close method directly here so we can reconnect
+# if needed. the other async method callbacks are in Cell.pm
+
+sub async_closed {
+
+	my( $self ) = @_ ;
+
+	my $sock = $self->cell_get_args( 'fh' ) ;
+
+#	$sock->close() ;
+
+#print "Sock MSG: closed name $self->{'reg_name'}\n" ;
+
+#		$self->{'sock_obj'}->connect_to() ;
+
+	if ( my $log_name = $self->{ 'log_name' } ) {
+
+		Stem::Log::Entry->new(
+				'logs'	=> $log_name,
+				'text'	=> "Closed\n$self->{'info'}",
+		)
+	}
+
+	$self->cell_set_args( 'info' => 'SockMsg disconnected' ) ;
+
+######################
+######################
+# add support for reconnect.
+# it has a flag, delay, retry count.
+######################
+######################
+
+	$self->cell_shut_down() ;
+}
+
+1 ;

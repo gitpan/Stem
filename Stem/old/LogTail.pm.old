@@ -1,0 +1,216 @@
+# Copyright 2000 by Stem Systems, Inc. All rights reserved.
+
+# If you have this software as part of the prototype release, you are
+# not allowed to distribute any copies to anyone. This software is not
+# to shown to anyone else without prior permission from Stem Systems.
+
+
+package Stem::LogTail ;
+
+use IO::Seekable ;
+#use Stem::Debug ;
+use Data::Dumper ;
+use strict ;
+
+
+
+my $attr_spec = [
+
+	{
+		'name'		=> 'path',
+		'required'	=> 1,
+		'help'		=> <<HELP,
+This is the full path to the file we want to tail.
+HELP
+	},
+	
+	{
+		'name'		=> 'data_log',
+		'required'	=> 1,
+		'help'		=> <<HELP,
+This is the Stem::Log where we send the data.
+HELP
+	},
+
+	{
+		'name'		=> 'status_log',
+		'help'		=> <<HELP,
+This is the Stem::Log where we send status messages. These include things like:
+Log has been rotated, deleted, moved, etc...
+HELP
+	},
+	{
+		'name'		=> 'label',
+		'default'	=> 'tail',
+		'help'		=> <<HELP,
+Label to tag tailed log entry.
+HELP
+	},
+	{
+		'name'		=> 'level',
+		'default'	=> '5',
+		'help'		=> <<HELP,
+Severity level for this tailed log entry.
+HELP
+	},
+
+	{
+		'name'		=> 'repeat_interval',
+		'help'		=> <<HELP,
+This specifies how often we check the log file for new data.
+If this is not specified, you need to manually call tail_cmd to check for
+new data.  This is in seconds.
+HELP
+	},
+	{
+		'name'		=> 'delay',
+		'default'	=> 10,
+		'help'		=> <<HELP,
+This specifies how often long the delay is (in seconds) before the
+first repeated checking of the log file for new data.
+HELP
+	},
+] ;
+
+
+sub new {
+
+	my( $class ) = shift ;
+
+	my $self = Stem::Class::parse_args( $attr_spec, @_ ) ;
+	return $self unless ref $self ;
+
+	if ( my $interval = $self->{'repeat_interval'} ) {
+
+		$self->{'timer'} = Stem::Event::Timer->new(
+				'object'	=> $self,
+				'method'	=> 'tail_cmd',
+				'interval'	=> $interval,
+				'delay'		=> $self->{'delay'},
+				'repeat'	=> 1,
+				'hard'		=> 1,
+		) ;
+	}
+
+	$self->{'prev_size'} = 0 ;
+	$self->{'prev_mtime'} = 0 ;
+	$self->{'prev_inode'} = -1 ;
+
+	return( $self ) ;
+}
+
+sub tail_cmd {
+
+	my( $self ) = @_ ;
+
+	local( *LOG ) ;
+
+	my $path = $self->{'path'} ;
+
+	unless( open( LOG, $path ) ) {
+
+
+		return if $self->{'open_failed'} ;
+		$self->{'open_failed'} = 1 ;
+
+		if ( my $status_log = $self->{'status_log'} ) {
+
+			Stem::Log::Entry->new(
+				'logs'	=> $status_log,
+				'label'	=> 'LogTail status',
+				'text'	=>
+					"LogTail: missing log $path $!\n",
+			) ;
+		}
+		return ;
+	}
+
+	$self->{'open_failed'} = 0 ;
+
+	my( $inode, $size, $mtime ) = (stat LOG)[1, 7, 9] ;
+
+#print "size $size mtime $mtime $inode\n" ;
+
+	my $prev_inode = $self->{'prev_inode'} ;
+	my $prev_size = $self->{'prev_size'} ;
+
+	if ( $prev_inode == -1 ) {
+
+		$self->{'prev_inode'} = $inode ;
+		
+		if ( my $status_log = $self->{'status_log'} ) {
+
+			Stem::Log::Entry->new(
+				'logs'	=> $status_log,
+				'level'	=> 6,
+				'label'	=> 'LogTail status',
+				'text'	=>
+					"LogTail: first open of $path\n",
+			) ;
+		}
+	}
+	elsif ( $inode != $prev_inode ) {
+
+		$self->{'prev_inode'} = $inode ;
+
+		if ( my $status_log = $self->{'status_log'} ) {
+
+			Stem::Log::Entry->new(
+				'logs'	=> $status_log,
+				'level'	=> 6,
+				'label'	=> 'LogTail status',
+				'text'	=>
+					"LogTail: $path has moved\n",
+			) ;
+		}
+
+# tail the entire file as it is new
+
+		$prev_size = 0 ;
+
+	}
+	elsif ( $size < $prev_size ) {
+	
+		if ( my $status_log = $self->{'status_log'} ) {
+
+			Stem::Log::Entry->new(
+				'logs'	=> $status_log,
+				'level'	=> 6,
+				'label'	=> 'LogTail status',
+				'text'	=>
+					"LogTail: $path has shrunk\n",
+			) ;
+		}
+
+# tail the entire file as it has shrunk
+
+		$prev_size = 0 ;
+	}
+	elsif ( $size == $prev_size ) {
+
+#print "no changes\n" ;
+		return ;
+	}
+
+	$self->{'prev_size'} = $size ;
+
+	my $delta_size = $size - $prev_size ;
+
+	return unless $delta_size ;
+
+	my $read_buf ;
+
+	sysseek( *LOG, $prev_size, SEEK_SET ) ;
+	sysread( *LOG, $read_buf, $delta_size ) ;
+
+	Stem::Log::Entry->new(
+		'logs'	=> $self->{'data_log'},
+		'level'	=> $self->{'level'},
+		'label'	=> $self->{'label'},
+		'text'	=> $read_buf,
+	) ;
+
+	return ;
+}
+
+1 ;

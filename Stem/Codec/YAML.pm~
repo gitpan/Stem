@@ -1,0 +1,215 @@
+#  File: Stem/Codec/YAML.pm
+
+#  This file is part of Stem.
+#  Copyright (C) 1999, 2000, 2001 Stem Systems, Inc.
+
+#  Stem is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+
+#  Stem is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+
+#  You should have received a copy of the GNU General Public License
+#  along with Stem; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+#  For a license to use the Stem under conditions other than those
+#  described here, to purchase support for this software, or to purchase a
+#  commercial warranty contract, please contact Stem Systems at:
+
+#       Stem Systems, Inc.		781-643-7504
+#  	79 Everett St.			info@stemsystems.com
+#  	Arlington, MA 02474
+#  	USA
+
+package Stem::Codec::YAML ;
+
+
+use strict ;
+
+use YAML ;
+
+use Stem::Class ;
+
+my $attr_spec = [
+
+	{
+		'name'		=> 'object',
+		'type'		=> 'object',
+		'help'		=> <<HELP,
+If an object is passed in, the filter will use it for callbacks
+HELP
+	},
+
+	{
+		'name'		=> 'encode_method',
+		'default'	=> 'encoded_data',
+		'help'		=> <<HELP,
+HELP
+	},
+
+	{
+		'name'		=> 'decode_method',
+		'default'	=> 'decoded_data',
+		'help'		=> <<HELP,
+HELP
+	},
+
+] ;
+
+sub new {
+
+	my( $class ) = shift ;
+
+	my $self = Stem::Class::parse_args( $attr_spec, @_ ) ;
+	return $self unless ref $self ;
+
+	return $self ;
+}
+
+sub encode {
+
+	my $self = shift ;
+
+	return unless @_ ;
+
+local( $SIG{'__WARN__'} ) = sub {} ;
+
+	my $yaml_text = Store( shift ) ;
+
+	my $size = length( $yaml_text ) ;
+
+# wrap the yaml text with a size/end pair of lines
+
+	my $encoded_text = "#$size:YAML\n$yaml_text#END\n" ;
+
+#print $yaml_text ;
+
+	if ( my $obj = $self->{'object'} ) {
+
+		my $method = $self->{'encode_method'} ;
+
+		$obj->$method( $encoded_text ) ;
+
+		return ;
+	}
+
+	return \$encoded_text ;
+}
+
+sub decode {
+
+	my( $self, $input ) = @_ ;
+
+	$input = '' unless defined $input ;
+
+	my $buf_ref = \$self->{'buffer'} ;
+
+	${$buf_ref} .= ( ref $input ) ? ${$input} : $input ;
+
+#print "BUF [${$buf_ref}]\n" ;
+	while( 1 ) {
+
+		my $size = $self->{'size'} ;
+
+		unless ( $size ) {
+
+# grab the size if we can from the header line
+
+			return unless ${$buf_ref} =~ s/^#(\d+):YAML\n// ;
+
+			$size = $1 ;
+
+			$self->{'size'} = $size ;
+		}
+
+# see if we have a full yaml message with end line
+
+		return if length( ${$buf_ref} ) < $size ;
+		return unless substr( ${$buf_ref}, $size, 5 ) eq "#END\n" ;
+
+		$self->{'size'} = 0 ;
+
+local( $SIG{'__WARN__'} ) = sub {} ;
+		my $decoded_data =
+			Load( substr( ${$buf_ref}, 0, $size + 5, '' ) ) ;
+
+		if ( my $obj = $self->{'object'} ) {
+
+			my $method = $self->{'decode_method'} ;
+
+			$obj->$method( $decoded_data ) ;
+
+			next ;
+		}
+
+		return( $decoded_data ) ;
+	}
+}
+
+
+sub input {
+
+	my( $self, $input ) = @_ ;
+
+	my $buf_ref = \$self->{'buffer'} ;
+
+	${$buf_ref} .= ( ref $input ) ? ${$input} : $input ;
+
+	while( 1 ) {
+
+		my $size = $self->{'size'} ;
+
+		unless ( $size ) {
+
+			return unless ${$buf_ref} =~ s/^#(\d+):YAML\n// ;
+
+			$size = $1 ;
+
+			$self->{'size'} = $size ;
+
+		}
+
+		return if length( ${$buf_ref} ) < $size ;
+
+		return unless substr( ${$buf_ref}, $size, 5 ) eq "#END\n" ;
+
+		$self->convert_in( \substr( ${$buf_ref}, 0, $size + 5, '' ) ) ;
+
+		$self->{'size'} = 0 ;
+	}
+}
+
+sub convert_in {
+
+	my( $self, $yaml_text ) = @_ ;
+
+	my $input_obj = Load( ${$yaml_text} ) ;
+
+	my $obj = $self->{'object'} ;
+
+	my $method = $self->{'input_method'} ;
+
+	$obj->$method( $input_obj ) ;
+}
+
+sub convert_out {
+
+	my( $self, $obj ) = @_ ;
+
+	my $yaml_text = Store( $obj ) ;
+
+#print $yaml_text ;
+
+	my $size = length( $yaml_text ) ;
+
+	my $out_text = "#$size:YAML\n$yaml_text#END\n" ;
+
+	return \$out_text ;
+}
+
+1 ;

@@ -1,0 +1,126 @@
+#!/usr/local/bin/perl -0777 -w
+#
+#	stem2pod
+#
+#	takes a single filename (a stem module) as its argument and spits
+#	out the pod for it, to be used in pipelines like:
+#
+#	stem2pod Stem::Foo.pm | pod2text | more
+
+use strict;
+
+my %ok_attrs = map { $_ => 1 }
+	qw( name type default required help class class_args ) ;
+
+my $curr_package ;
+
+my $code_text = <>;
+
+use Data::Dumper ;
+
+# for catfood's edification, this matches
+# (first) any pod section, saving the whole section; or
+# (second) any "package" line, saving the package name; or
+# (third) any "attr_spec" line, saving the whole line.
+my @code_parts = $code_text =~ m{
+	^package\s+[\w:]+ |
+	^my\s+\$attr_spec.+?^] |
+	^=\w+.+?^=cut\n
+}msgx;
+
+
+foreach my $code_part (@code_parts) {
+
+	if ( $code_part =~ /(^=\w+.+?^=cut\n)/msgc ) {
+		print $1 ;
+		next ;
+	}
+
+	if ( $code_part =~ /^package\s+([\w:]+)/ ) {
+		print "=head1 PACKAGE $1\n\n";
+		$curr_package = $1 ;
+		next ;
+	}
+
+	if ( $code_part =~ /^my\s+\$attr_spec\w*\s*=\s*?(\[.+^])/msgc ) {
+		process_attr_spec( $1 ) ;
+		next ;
+	}
+
+	print "$0: matched something unrecognized?\n";
+	print $code_part ;
+
+	exit 1;
+}
+print "=cut\n\n";
+
+sub process_attr_spec {
+
+	my $attr_text = shift ;
+
+	my $attr_list = eval $attr_text ;
+
+	print "=head2 ATTRIBUTES\n\n=over 4\n\n" ;
+
+	foreach my $attr_ref ( @{ $attr_list } ) {
+
+		print "\n=item * $attr_ref->{'name'}\n\n";
+
+		if ( exists( $attr_ref->{'help'} ) ) {
+			print "Explanation:\n\n$attr_ref->{'help'}\n";
+		}
+
+		if ( exists( $attr_ref->{'type'} ) ) {
+			print "type: $attr_ref->{'type'}\n";
+		}
+
+		if ( exists( $attr_ref->{'default'} ) ) {
+
+			if( ref($attr_ref->{'default'}) eq "ARRAY" ) {
+
+				print "default value: ",
+				      @{$attr_ref->{'default'}},
+				      "\n"
+					if @{$attr_ref->{'default'}} ;
+			}
+			else {
+
+				print "default value: $attr_ref->{'default'}\n";
+			}
+
+		}
+
+		if ( exists( $attr_ref->{'required'} ) ) {
+			print "This attribute is B<required>.\n";
+		}
+
+		if ( exists( $attr_ref->{'class'} ) ) {
+			print
+			"This attribute is a class $attr_ref->{'class'}.\n";
+		}
+
+		if ( exists( $attr_ref->{'class_args'} ) ) {
+
+			my @class_args = @{$attr_ref->{'class_args'}} ;
+			print "The class args are [@class_args].\n";
+		}
+
+		foreach my $attr ( sort keys %{ $attr_ref } ) {
+
+			next if $ok_attrs{ $attr } ;
+
+			print "Unknown atrtibute $attr\n" ;
+		}
+	}
+	print "\n\n=back\n\n";
+}
+
+=head1 pod2stem
+
+takes a single filename (a stem module) as its argument and spits
+out the pod for it, to be used in pipelines like:
+
+C<stem2pod Stem::Foo.pm | pod2text | more>
+
+=cut
+

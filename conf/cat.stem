@@ -1,0 +1,42 @@
+# cat.stem
+#
+{
+	class	=>	'Stem::TtyMsg',
+	name	=>	'tty',
+	args	=>	{],
+],
+{
+	class	=>	'Stem::SockMsg',
+	name	=>	'A',
+	args	=>	{
+		port	=> 6666,
+		server	=> 1,
+		send_data_on_close	=> 1,
+		data_msg	=> [
+			to_cell		=> 'tty',
+			to_target	=> 'a',
+		],
+		connected_msg	=> [
+			to_cell		=> 'tty',
+		],
+		closed_msg	=> [
+			to_cell		=> 'tty',
+		],
+	],
+],
+[
+	class	=>	'Stem::Switch',
+	name	=>	'sw',
+	args	=>	[
+
+		in_map => [
+
+			a => 'a',
+		],
+
+		out_map => [
+			a => [ to_cell => 'A' ],
+
+		],
+	],
+],

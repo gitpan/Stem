@@ -1,0 +1,20 @@
+# log_server.stem
+#
+[
+	class	=>	'Stem::Hub',
+	name	=>	'server',
+	args	=>	[],
+],
+[
+	'class'	=>	'Stem::Log::File',
+	'args'	=>	[
+
+		'name'	=>	'serv',
+		'dir'	=>	'logs',
+		'file'	=>	'log_serv_file',
+	],
+],
+[
+	class	=>	'Stem::Portal',
+	args	=>	['server' => 1 ],
+],

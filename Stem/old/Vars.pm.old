@@ -1,0 +1,69 @@
+# Copyright 2000 by Stem Systems, Inc. All rights reserved.
+
+# If you have this software as part of the prototype release, you are
+# not allowed to distribute any copies to anyone. This software is not
+# to shown to anyone else without prior permission from Stem Systems.
+
+use strict ;
+
+package Stem::Vars ;
+
+
+use base 'Exporter' ;
+use vars qw( %Env @EXPORT ) ;
+
+@EXPORT = qw( %Env ) ;
+
+Stem::Route::register_class( __PACKAGE__, 'var' ) ;
+
+sub set_env_cmd {
+
+	my( $self, $msg ) = @_ ;
+
+	my( $data ) = $msg->data() ;
+
+	$data = ${$data} if ref $data ;
+
+	if ( my( $key, $val ) = $data =~ /^\s*(\w+)\s*=\s*(.+)$/ ) {
+
+		$val =~ s/\s+$// ;
+		$Env{ $key } = $val ;
+	}
+
+	return ;
+}
+
+sub get_env_cmd {
+
+	my( $self, $msg ) = @_ ;
+
+	my( $data ) = $msg->data() ;
+
+	$data = ${$data} if ref $data ;
+
+	return $Env{$data} ;
+}
+
+sub status_cmd {
+
+	my $text ;
+
+	$text = <<TEXT ;
+
+Status of Stem Environment
+
+TEXT
+
+	while( my( $key, $val ) = each %Env ) {
+
+		my $pad = "\t" x ( 2 - length( $key ) / 8 ) ;
+
+		$text .= "\t$key =\t$pad'$val'\n" ;
+	}
+
+	$text .= "\n\n" ;
+
+	return $text ;
+}
+
+1 ;

@@ -1,0 +1,216 @@
+chapter: Stem Overview
+
+title: A Typical Network Problem
+
+*: Web Server is Overloaded
+*: Monitor Sends Email to Administrator
+*: Edit Configuration File
+*: Transfer Configuration File to Server
+*: Login to Server Box
+*: Signal Server to Reload Configuration
+*: Monitor Server to Verify Fix
+*: Log the Problem and Final Status
+
+HAIKU:Stem Monitoring.:Overloaded Server Appears.:Remediation.
+
+PAGE_END
+
+title: The Tools and Glue Solution
+
+*: Monitor Program
+*: Email
+*: File Transfer Utility
+*: Web Server Configuration Utility
+*: Remote Execution
+*: Logger
+*: Lots of Glue Code
+*: Incompatible Tools
+*: Many Tools to Learn
+*: Poor Support
+
+HAIKU: Library paste code.:Scream your mantra - "Ad hoc!":Spring is overstretched.
+
+PAGE_END
+
+title: The Monolithic Solution
+
+*: It Does it All
+*: It Monitors
+*: It Updates Configuration
+*: It Makes the Server Reload
+*: It Logs
+*: It is Inflexible
+*: It is Hard to Learn
+*: It is Expensive
+*: It is Bloatware
+
+HAIKU: Sysadmin overcome.:Network CPR required.:Stem resuscitates.
+
+PAGE_END
+
+title: The Stem Solution
+
+*: Server Monitoring Object
+*: Sends a Server Overload Message
+*: Server Configuration Object Updates File
+*: File Transfered by Stem
+*: Message to Server Manager Object: Reload Config File
+*: Monitor Object Checks that Overload is Cleared
+*: All Results Sent to Logical Logs
+
+HAIKU:Just one message lost:could stop your business blooming.:Fear not - grasp the stem!
+
+PAGE_END
+
+title: Key Applications
+
+*: Logging and Log Management
+*: Configuration and Data Distribution
+*: System and Network Monitoring
+*: Cluster Management
+*: Batch and Compute Farm Management
+
+HAIKU:To keep your network:flowering when the heat's on,:it needs a strong Stem.
+
+PAGE_END
+
+title: Log Management
+
+*: Log Entry is Submitted to a Logical Log
+*: Logical Log has Filter Rules and Actions
+*: Rules test strings, numbers, Stem Environment
+*: Boolean Combinations of Rules and Actions
+*: Monitoring of External Logs
+*: Debug and Trace Subsystems Use Stem::Log
+*: Monitoring Subsystems Uses Stem::Log
+*: Syslog and Syslogd Replacement
+*: Local or Remote Log Files
+
+HAIKU: "Timber!" cries the Jack.:Wooden messages dammed net.:Stem builds log cabins.
+
+PAGE_END
+
+title: Demo: An Inetd Emulation
+
+*: Single Stem Hub
+*: Single Stem::Proc Cell
+*: 4 Socket-to-Message Cells
+*: 4 telnet sessions
+*: Each Telnet Gets Its Own Process
+*: Sessions Can Set Custom Process Options
+*: Documented in DEMO_INETD
+*: Configuration in <A HREF="conf/inetd.stem">inetd.stem</A>
+
+<IMG SRC="images/inetd.GIF">
+
+
+PAGE_END
+
+title: Demo: A Simple Chat Server
+
+*: Single Stem Hub
+*: Switch Cell
+*: 4 Socket-to-Message Cells
+*: 4 telnet sessions
+*: Documented in DEMO_CHAT
+*: Configuration in <A HREF="conf/chat.stem">chat.stem</A>
+
+<IMG SRC="images/chat.1.GIF">
+
+PAGE_END
+
+title: Demo: Multi-Hub Chat Server
+
+*: Two Stem Hubs
+*: Switch Cell only in Hub 'server'
+*: 2 Socket-to-Message Cells in Each Hub
+*: 4 telnet sessions
+*: Documented in DEMO_CHAT
+*: Configuration in <A HREF="conf/chat_server.stem">chat_server.stem</A> and <A HREF="conf/chat_client.stem">chat_client.stem</A>
+
+<IMG SRC="images/chat.2.GIF">
+
+HAIKU:To keep your network:flowering when the heat's on,:it needs a strong Stem.
+
+PAGE_END
+
+title: Demo: Tailing a Remote Log
+
+*: Two Stem Hubs
+*: LogTail Cell in Hub 'monitor'
+*: 3 Logical Logs in Hub 'archive'
+*: Multiple potential destinations: file, tty, email, pager, other Logs
+*: Documented in DEMO_TAIL
+*: Configuration in <A HREF="conf/monitor.stem">monitor.stem</A> and <A HREF="conf/archive.stem">archive.stem</A>
+
+<IMG SRC="images/tail.GIF">
+
+PAGE_END
+
+
+title: Stem Architecture
+
+*: Message Passing
+*: Event Driven
+*: Object Oriented
+*: 3 Level Message Addressing: Hub, Cell, Target
+*: A Hub is a Stem daemon process
+*: A Cell is an Object that can Receive Messages
+*: The Target Addresses a Cloned Cell Spawned from a Parent Cell
+*: Messages Can be Sent To/From any Cell
+*: Peer to Peer Communication
+*: Highly Modular and Scalable
+
+HAIKU:Dark nooks and crannies,:Of your network labyrinth.:Stem sprouts anywhere.
+
+PAGE_END
+
+title: Stem User and Developer Benefits
+
+*: Save Development and Maintenance Time
+*: Common Network Coding is Transformed to Configuring
+*: A Networked Data and Control Bus
+*: Simple Configuration
+*: Minimal Glue Coding
+*: Maximal Flexibility
+*: Easy Extensions
+*: Consistant Cell and Object API 
+*: Large Library of Modules/Cells
+*: All Network Operations under one Umbrella
+*: Perl is the Glue of the Net, Stem is the Superglue
+*: Pure Perl
+*: Free to Use
+*: Fully Supported
+
+HAIKU: The server freezes.:Vital data snowed under.:Springing up - a Stem.
+
+PAGE_END
+
+title: Some of Stem's Core Modules
+
+*: Messages: Creation, Dispatch, Switching
+*: Dynamic Configuration: Remote and Local
+*: Logical Logs and Log Monitoring
+*: Process Management: Forking, Watchdog, Monitoring
+*: Asynchronous Sockets and I/O
+*: File and Directory Transfers
+*: Protocols: HTTP, SMTP, SNMP
+*: DBI/DBD
+*: Events, Sequences, Timers
+
+HAIKU: Coders or firemen?:Network in conflagration.:From ashes rose Stem.
+
+PAGE_END
+
+title: Stem Buddies
+
+*: Part Time Developers
+*: Parallel Module Development
+*: Large Work Force
+*: Earn Combination of Cash, Equity and Royalties
+*: Percentage of Support Revenue to Buddies
+*: Stem Systems Supports their Modules
+
+HAIKU: Nets catch more than fish.:Data trapped beneath the waves.:Stem frees; packets breathe.
+
+PAGE_END

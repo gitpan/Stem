@@ -1,0 +1,20 @@
+# x.stem
+#
+[
+	class	=>	'Stem::SockMsg',
+	name	=>	'Xterm',
+	args	=>	[
+
+		port		=> 6010,
+		server		=> 1,
+		data_msg	=> [ to_cell => 'XServer', ],
+	],
+],
+[
+	class	=>	'Stem::SockMsg',
+	name	=>	'XServer',
+	args	=>	[
+		port	=> 6000,
+		data_msg	=> [ to_cell => 'Xterm', ],
+	],
+],
