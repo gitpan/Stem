@@ -1,5 +1,0 @@
-
-sub hello_cmd {
-
-	return "hello world!\" ;
-}

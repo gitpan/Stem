@@ -33,28 +33,42 @@ $Data::Dumper::Useqq = 1 ;
 
 $| = 1 ;
 
+#print "RUN STEM $0\n" ;
+
 my @conf_args ;
 
 # we set Stem's default environment before we load any Stem modules so
 # they can use those values
 
+use Stem::InstallConfig ;
+
 BEGIN {
 	my $env_text ;
-	my $stem_lib_dir = '/usr/local/lib/stem' ;
+	my $stem_lib_dir = $Stem::InstallConfig::Config{'conf_path'} ;
+
+	my $is_win32 = $^O =~ /Win32/i ;
 
 # get the site env and home env files
 
-	my @env_files = grep -r, "$stem_lib_dir/env",
-				 ( $ENV{HOME} ||
+	my @env_files = "$stem_lib_dir/env" ;
+
+	unless ( $is_win32 ) {
+
+		push @env_files, ( $ENV{HOME} ||
 				   $ENV{LOGDIR} ||
 				   (getpwuid($>))[7] ) . '/.stem_env' ;
+	}
 
 	foreach my $env_file ( @env_files ) {
 
+		next unless -r $env_file ;
+
 # shut up a dumb warning
 		use vars '*ARGVOUT' ;
-		$env_text .= do { local( @ARGV, $/ ) = $env_file ; <> } ;
+		$env_text .= 
+			do { local( @ARGV, $/ ) = $env_file ; <> } ;
 	}
+
 
 # set the starting %env from the files
 
@@ -76,7 +90,7 @@ BEGIN {
 
 		my $arg = shift ;
 
-		if ( $arg =~ /(\w+)=(.*)/ ) {
+		if ( $arg =~ /([^=]+)=(.*)/ ) {
 
 			$Stem::Vars::Env{ $1 } = $2 ;
 			next ;
@@ -166,10 +180,12 @@ TraceStatus $err if $err;
 
 die $err if $err ;
 
-
+###############
+# this should use Stem::Event
+###############
 $SIG{ 'INT' } = sub {
 	TraceStatus "INT signal received" ;
-	Stem::Event::end_loop()
+	Stem::Event::stop_loop()
 } ;
 
 Stem::Event::start_loop() ;
@@ -177,3 +193,91 @@ Stem::Event::start_loop() ;
 TraceStatus "Stem shutdown" ;
 
 exit;
+
+=head1 run_stem - Start up Stem and load configuration files
+
+=head2 Synopsis
+
+	run_stem foo=bar stem_conf_file
+
+This script is the way most Stem applications are started. It does
+several important things so you don't have to create your own top
+level scripts. It is not required to execute run_stem to use Stem but
+it makes it much easier to get it going in most cases. The following
+are the steps that 'run_stem' does when bringing up Stem.
+
+=head2 * Load Stem Environment
+
+Many Stem modules and cells look at the Stem environment for default
+configuration values or global flags. This allows you to control how
+many of the cells and modules behave when loaded and instantiated.  If
+a Stem attribute in a specification has its 'env' name description
+set, it will use that name (optionally prefixed with the cell's
+registration name) as a key to lookup in the Stem Environement. If
+found there, that value becomes is used and overrides the default and
+any value set in a configuration file. This allows the user to
+override default setting from the outside without modifying Stem
+configuration files. See Stem::Class for more on this.  The Stem
+environment is set from these sources in the following order:
+
+=over 4
+
+=item Global Site Environment File
+
+'run_stem' initially looks for a file named 'env' in the first
+configuration directory (set at install time) and loads it if
+found. These site and user files both have a simple key=value format
+with one entry per line.
+
+=item User Environment File
+
+'run_stem' then will look in your home directory (not supported on
+windows) for a file named .stem_env and loads it if found.
+
+=item Shell Environment
+
+Any shell environment variable with the form 'STEM_*' will
+have the 'STEM_' part deleted and the rest of its name
+converted to lower case. That will become the key in the Stem
+environment with the value set to the shell variable's value.
+
+=item Command Line
+
+Any command line arguments of the form key=value will be
+parsed out and used to set a Stem environment variable.
+
+=back
+
+=head2 * Load Stem Core Modules
+
+	'run_stem' then loads all the core Stem modules with a use
+	Stem line.
+
+=head2 * Load Configuration Files
+
+Any arguments left in @ARGV are assumed to be Stem configuration
+files. Typically there is only one configuration file but you can have
+pass in as many as you want.  The config file arguments can have a
+.stem suffix or no suffix. The configuration directory list is
+searched in order for the file and it is loaded and all of its entries
+are constructed.
+
+You can override the default configuration directory list (set at
+install time) by setting the 'conf_path' Stem environment variable
+from the shell environment or on the 'run_stem' command line. The
+following are equivilent:
+
+	export STEM_CONF_PATH=/etc/stem/conf:/home/foo/.stem
+	run_stem bar
+
+	run_stem conf_path=/etc/stem/conf:/home/foo/.stem bar
+
+=head2 * Start Event Loop
+
+The final operation 'run_stem' does is start the main event
+loop. If no events were created by the loaded configuration
+files, this will fail and 'run_stem will exit immediately. If
+all the created events eventually get canceled, the event loop
+will exit and 'run_stem' will exit too.
+
+=cut

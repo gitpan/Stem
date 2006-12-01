@@ -1,6 +1,60 @@
+Stem Version 0.11
+=================
+Fri Dec  1 03:50:58 EST 2006
+
+
+* The Stem event loop is layered and can easily wrap other event
+  loops. Supported event loops include Event.pm, perl/tk and wxperl and
+  a pure Perl event Loop. See Stem::Event.pm and Stem::Event::EventPM.pm
+  for more.  Other event loops that need wrapping include POE, Gtk and Qt.
+
+* There is a pure Perl event Loop so Stem now runs on windows or on any
+  system where Event.pm isn't installed. 
+
+* Full support for SSL on all socket related objects and cells.
+  Converting from a plain socket to an SSL socket just requires adding
+  the SSL arguments to the Stem::Socket contruction. All Stem modules
+  that use sockets use Stem::Socket which in turn uses IO::Socket::SSL
+  (and that needs openssl). If that module is not installed, its test
+  will be skipped.
+
+* There is a Stem::UDPMsg cell that provides a UDP socket client and/or
+  server.
+
+* The new Stem::Cell::Flow module provides a way for Stem cells to
+  handle a mix of sync/async (local/remote) method calls. You can create
+  a logic flow with if/else/while command in a simple mini-language.
+  This allows a cell to do complex operations such as accessing a DB
+  (via Stem::DBI) or fetching web pages and mix that with local method
+  calls that crunch the data. Normally this would entail a complex state
+  machine or having each method know the next one to call but
+  Stem::Cell::Flow allows you to convert that to a much simpler logic
+  flow. See the test script t/cell/flow.t and the lib/Stem/Test/Flow.pm
+  module for more on this. It requires Parse::RecDescent to be installed
+  (the test will be skipped if it is not found).
+
+* A bunch of new tests were added:
+
+	Event loops
+	Sockets (both with and without SSL)
+	Stem::Cell::Flow
+
+* There is a brand new install based on Module::Build. A Makefile.PL is
+  provided but it is a wrapper around the Module::Build installer. Stem
+  can now be installed with CPAN.pm
+
+* There is more pod (and more is needed). All contructor attributes are
+  now automatically updated to pod by the stem2pod utility. That script
+  also inserts pod templates for all methods. This will make it easier
+  to add pod and keep it up to date.
+
+* Cleaned up the INSTALL, README and other top level documents.
+
+* Many more changes than I have room to write in this file.
+
 Stem Version 0.10
 =================
-XX-XX-2002
+Nov-11-2002
 
 * The version number has been bumped to 0.10 because of the large number
   of changes and the major improvements in reliability and speed.
@@ -97,7 +151,7 @@ XX-XX-2002
 
 Stem Version 0.06
 =================
-02-26-2002
+Feb-26-2002
 
 * Stem is now released under the GPL. If you want to use Stem in a
   product that will be sold, contact us about acquiring a commercial

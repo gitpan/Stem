@@ -38,7 +38,7 @@ print "$cmd\n" ;
 	s/:/: / for @cmd ;
 
 	fork_exec( @cmd ) ;
-	sleep 2 unless $cmd =~ /telnet/ ;
+	sleep 2 unless $cmd =~ /localhost/ ;
 }
 
 while( <STDIN> ) {

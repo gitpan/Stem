@@ -7,6 +7,8 @@ $xskip = ( $^O eq 'solaris' ) ? 600 : 500 ;
 
 my @children ;
 
+print "INETD: $ENV{PATH}\n" ;
+
 $SIG{ 'INT' } = \&cleanup ;
 
 if ( $s ) {
@@ -30,14 +32,14 @@ EOT
 	$cmd =~ s/LINE/$line_cnt/ ;
 	$cmd =~ s/OFF/$base_off/ and $base_off += $offset ;
 
-print "$cmd\n" ;
+print "CMD $cmd\n" ;
 
 	@cmd = split ' ', $cmd ;
 
 	s/:/: / for @cmd ;
 
 	fork_exec( @cmd ) ;
-	sleep 4 unless $cmd =~ /telnet/ ;
+	sleep 4 unless $cmd =~ /localhost/ ;
 }
 
 

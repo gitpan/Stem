@@ -18,7 +18,7 @@
 	'name'	=>	'foo',
 	'args'	=>	[
 		'path'		=> 'tail/foo.log',
-		'repeat_interval' => 3,
+		'interval'	=> 3,
 		'delay' 	=> 0,
 		'data_log'	=> 'archive:bar',
 		'status_log'	=> 'archive:bar_status',

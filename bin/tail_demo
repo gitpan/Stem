@@ -41,7 +41,8 @@ EOT
 	chdir $tail_dir unless $cmd =~ /run_stem/ ;
 
 	fork_exec( @cmd ) ;
-	sleep 2 unless $cmd =~ /telnet/ ;
+
+	sleep 2 ;
 }
 
 while( <STDIN> ) {

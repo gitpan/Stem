@@ -26,7 +26,7 @@ command:
 
 chat_demo
 
-To exit, just enter 'q' in the chat_demo script window itself. It will
+To exit, just enter 'quit' in the chat_demo script window itself. It will
 kill all the other windows and then exit. This will also happen if you
 interrupt the demo script with ^C.
 

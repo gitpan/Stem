@@ -1,16 +1,14 @@
 # hello_shell.stem
 [
-	class	=>	'Stem::TtyMsg',
-	args	=>	[],
+	class	=>	'Stem::Console',
 ],
 [
 	class	=>	'Stem::Proc',
 	name	=>	'hello',
 	args	=>	[
 		path		=> 'bin/hello.sh',
-		proc_args	=> ['britemoon'],
 		cell_attr	=> [
-			'data_addr'	=> 'tty',
+			'data_addr'	=> 'console',
 		],
 	],
 ],

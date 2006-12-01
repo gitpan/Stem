@@ -1,9 +1,0 @@
-# remote.stem
-#
-[
-	'class'	=>	'Stem::Conf',
-	'args'	=>	[
-		'path'		=> 'conf/tail.stem',
-		'to_hub'	=> 'client',
-	],
-],

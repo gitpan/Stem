@@ -8,7 +8,6 @@
 	class	=>	'Stem::Console',
 ],
 
-
 # these two cells are both SockMsg's. they are servers listening for
 # connections on different ports. they have different Cell addresses (A,
 # B). Both use the Stem::Cell attributes to handle cloning upon
@@ -25,8 +24,8 @@
 		server		=> 1,
 		cell_attr	=> [
 			'cloneable'	=> 1,
-# this name maps to the cell name of the Proc::Serv below
-			'pipe_addr'	=> 'proc_serv',
+# this name maps to the cell name of the Stem::Proc below
+			'pipe_addr'	=> 'quote',
 		],
 	],
 ],
@@ -38,22 +37,21 @@
 		server		=> 1,
 		cell_attr	=> [
 			'cloneable'	=> 1,
-# this name maps to the cell name of the Proc::Serv below
-			'pipe_addr'	=> 'proc_serv',
+# this name maps to the cell name of the Stem::Proc below
+			'pipe_addr'	=> 'quote',
 			'pipe_args'	=> '-n',
 		],
 	],
 ],
 
 # this is the Stem::Proc cell actually forks the program. its name is
-#  refered to by the SockMsg cells. the program path/name happens to be
-# the same as the cell name.
+# refered to by the SockMsg cells. 
 
 [
 	class	=>	'Stem::Proc',
-	name	=>	'proc_serv',
+	name	=>	'quote',
 	args	=>	[
-		path		=> 'bin/proc_serv',
+		path		=> 'quote_serve',
 		use_stderr	=> 1,
 		cell_attr	=> [
 			'cloneable'	=> 1,

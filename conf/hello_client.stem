@@ -16,7 +16,7 @@
 	name	=>	'hello',
 	args	=>	[
 		path		=> 'bin/hello.sh',
-		proc_args	=> ['britemoon client'],
+		proc_args	=> ['client'],
 		cell_attr	=> [
 			'data_addr'	=> 'system_A:console',
 		],

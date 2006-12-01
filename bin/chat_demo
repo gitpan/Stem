@@ -5,6 +5,8 @@ $offset = 175 ;
 $base_off = 0 ;
 $xskip = ( $^O eq 'solaris' ) ? 600 : 500 ;
 
+print "CHAT DEMO\n" ;
+
 my @children ;
 
 $SIG{ 'INT' } = \&cleanup ;
@@ -37,7 +39,7 @@ print "$cmd\n" ;
 	s/:/: / for @cmd ;
 
 	fork_exec( @cmd ) ;
-	sleep 4 unless $cmd =~ /telnet/ ;
+	sleep 4 unless $cmd =~ /localhost/ ;
 }
 
 

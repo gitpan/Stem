@@ -1,17 +1,15 @@
-			     Stem Development TODO List
+		       Stem Development TODO List
 
-Last edited 4/12/01
+Feel free to tackle any of these tasks. Email uri@stemsystems.com if you
+want design/code ideas or to discuss any of these projects.
 
-This is only the tip of the real todo list. These are projects in the
-immediate queue or soon after. This list is updated regularly to keep it
-accurate.
+Last edited Fri Jan 16 17:07:14 EST 2004
 
-Stem::Event
+Stem::Event::*
 
-	add event tracing with Debug.
-
-	lookup objects that get an event in the registry. mark that as
-	the current Cell/object. use this for default from address.
+	Add support for more event loops (Tk, Qt, tcl, WxWindows,
+	POE). See Stem::Event::EventPM for an example of how to wrap an
+	event loop in Stem.
 
 Stem::Msg, Stem::Route
 
@@ -24,27 +22,22 @@ Stem::Msg, Stem::Route
 	add support for a forward. it takes a message, clones it and
 	changes the to address.
 
-	do we need an origin address? how does it differ from 'from'?
-	what about tracking the path a message took?
-
-	define the semantics of reply, from and origin address parts
-
+	maybe move Stem::Route to Stem::Msg::Route. it is only used by
+	Stem::Msg and that better describes its name.
 
 Stem::Portal
 
-	convert to use Class clone/piped support
+	finish and test Portal forking
 
-	make other form of ssh support work.
+	maybe convert to use Class clone/piped support. not sure if this
+	is reasonable or worth it.
 
 Stem::Log
 
-	get StemLog autoconfiguration tested
-
-	add log file management and options:
-
-		rotation, compression, transfer to other dirs/boxes
-
-	all log files are suffixed with a timestamp
+	add support for single method ref to do all the filtering. it is
+	passed the log entry and is a stem::log::entry object. it can
+	call all the action methods. there is no need for the current
+	design of a list of key/values. it will be deprecated.
 
 	timestamp is set with a template (strftime like but numbers only).
 
@@ -64,89 +57,43 @@ run_stem
 
 	write tech notes for run_stem
 
-Stem::SockMsg
-
-	convert to use Class clone/piped support
-
 Stem::Proc
 
-	much more testing
+	needs much more testing
 
 	test pseudo tty
 
-	convert to use Class clone/piped support
-
-Stem::Class
-
-	Class fields need to have supported types like boolean, message,
-	etc. This needs design work and then not too much coding.
-
-
-	add support for common methods to handle cloning and pipe
-	creation. then if you need them, you can just do a use base
-	'Stem::Class'.
-
-	the 'clone_data' and 'pipe_data' attributes will be used for
-	that.
-
-	if 'cloned' or 'piped' attribute is set then parse_args will
-	initialize them for use by the methods.
-
-
 Stem::File
+
+	(some of this is done. a good simple project to pick up)
 
 	design parent cell and how it spawns targeted file cells.
 
 	code file stem based transfer stuff.
-
-	code external ssh transfers
-
-	later code ftp transfers based on Stem::Expect
 
 	add file compare options - size, timestamp, MD5
 
 	add single directory support.
 	filename filters
 
-	add tree support
-
-	add support for ftp and scp
+	add dir tree copy support
 
 	add throttle support? don't want to slurp entire large file in
 	and clog the system. throttle with reply messages and/or timing
 
-Stem::State
+	add support for ftp and scp
 
-	design basic state machine
+Stem::Util
 
-		current state token
-
-		input value -- message, callbacks, direct method
-
-		regex matches
-
-		output value -- message, write method/callback?
-
-		new state token
-
-	state object does not do i/o. it is driven from the outside with
-	a single input argument. state failures can be ok (an optional
-	flag) and just cause more data to be read and resubmitted to the
-	stae machine. so if expect is not timed out it waits for more
-	data. a timeout is used as input to the engine for where to
-	go. maybe that is a special state input that uses a method
-	instead of a string:
-
-		$output = $state->next( $new_text ) ; # normal call
-		# returns undef on failure to match.
-
-		$output = $state->next( $new_text, 1 ) ; #  call
+	replace read_file/write_file with File::Slurp. might as well eat
+	my own dog food. this needs to be added to the required modules
+	list in Build.PL
 
 Stem::Expect
 
 	use proc or socket and use async IO
 
-	hook in Stem::State
+	hook in Stem::Cell::Flow
 
 	expect handles timeouts from async IO. then it drives the state
 	machine with a timeout method. regular input is sent to the
@@ -159,22 +106,11 @@ Stem::Expect
 	(protocol::ftp?) would want callbacks itself in some cases. 
 
 Testing
-
-	need unit tests and incremental tests during development.
-
 	need tests for higher level cells.
 
 	need load testing of various subsystems.
 
 	need cross platform testing.
-
-	in the intermediate term (6 months to a year) i envision a set
-	of test boxes, consisting of a variety of brands of hardware and
-	OSs. we can use low priced stuff and whatever we scrounge
-	up. Stem would be configured to run over all the boxes (we make
-	it easy to add/delete hardware) and continuously test load, long
-	term stability, interoperability, regressions, etc. there will
-	be a single person/group responsible for this test envionment.
 
 Documentation
 
@@ -185,10 +121,6 @@ Documentation
 	easily and eval the string. the either edit the internal pod or
 	some other text file. it would generate a nicely formatted
 	description of all the class fields.
-
-security
-
-	support stunnel which should be easier.
 
 Tracing
 
