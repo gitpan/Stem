@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -s
+#!/usr/bin/env perl
 
 $line_cnt = 10 ;
 $offset = 175 ;
@@ -16,6 +16,9 @@ if ( $s ) {
 	$prompt2 = '-prompt Chat:' ;
 	$echo = 'console_echo=1'
 }
+
+# So it can find the run_stem command we want...
+$ENV{PATH} = "./bin:$ENV{PATH}" ;
 
 foreach $cmd ( split /\n/, <<EOT ) {
 xterm -T Chat1 -n Chat1 -geometry 80x25+XSKIP+0   -e $ssfe $prompt run_stem $echo  chat_server

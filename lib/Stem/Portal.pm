@@ -255,9 +255,9 @@ sub new_parent_portal {
 	$run_stem_path ||= do {
 
 		require Stem::Proc ;
-		require Stem::InstallConfig ;
+		require Stem::ConfigData ;
 
-		$Stem::InstallConfig{ run_stem_path } ;
+		Stem::ConfigData->config( 'run_stem_path' ) ;
 	} ;
 
 	my $conf_file = $self->{'spawn_conf_file'} || 'portal_child' ;

@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!/usr/bin/env perl
 #
 #	stem2pod
 #
@@ -9,7 +9,8 @@
 #	if a file is changed, it is written out over itself. unchanged
 #	files are not touched.
 
-use strict;
+use strict ;
+use warnings ;
 
 use Carp qw( carp cluck ) ;
 use Data::Dumper;

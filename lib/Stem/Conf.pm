@@ -169,7 +169,7 @@ sub load_confs {
 		$conf_name =~ s/\.stem$// ;
 
 		for my $path ( @conf_paths ) {
-
+			$path =~ s/^~/$ENV{HOME}/ if $ENV{HOME} ;
 			my $conf_path = "$path/$conf_name.stem" ;
 
 			next unless -e $conf_path ;

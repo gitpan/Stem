@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!/usr/bin/env perl
 #  File: bin/run_stem
 
 #  This file is part of Stem.
@@ -40,11 +40,16 @@ my @conf_args ;
 # we set Stem's default environment before we load any Stem modules so
 # they can use those values
 
-use Stem::InstallConfig ;
+# This is so we can try the demos after ./Build, but before ./Build install
+use lib './blib/lib' ;
+
+
+use Stem::ConfigData ;
 
 BEGIN {
+
 	my $env_text ;
-	my $stem_lib_dir = $Stem::InstallConfig::Config{'conf_path'} ;
+	my $stem_lib_dir = Stem::ConfigData->config('conf_path') ;
 
 	my $is_win32 = $^O =~ /Win32/i ;
 
@@ -102,7 +107,7 @@ BEGIN {
 # set the default config search path. this will be changed by the install
 # script.
 
-	$Stem::Vars::Env{ 'conf_path' } ||= 'conf:.' ;
+	$Stem::Vars::Env{ 'conf_path' } ||= $stem_lib_dir ;
 
 # set the trace levels
 
@@ -143,6 +148,7 @@ BEGIN {
 
 # we load Stem after we process the command line args and %ENV so the
 # modules can use those values
+
 
 use Stem ;
 

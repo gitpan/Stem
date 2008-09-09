@@ -5,4 +5,4 @@ unless ( eval { require Parse::RecDescent } ) {
 	exit ;
 }
 
-exec qw( run_stem event_loop=perl test_flow) ;
+exec qw( blib/script/run_stem event_loop=perl test_flow) ;

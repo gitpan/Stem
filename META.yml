@@ -1,20 +1,22 @@
---- #YAML:1.0
+---
 name: Stem
-version: 0.11
-author: ~
-abstract: ~
+version: 0.12
+author: []
+abstract: ABSTRACT GOES HERE
 license: gpl
+resources:
+  license: http://www.opensource.org/licenses/gpl-license.php
 dynamic_config: 1
 provides:
   Stem:
     file: lib/Stem.pm
-    version: 0.11
+    version: 0.12
   Stem::AsyncIO:
     file: lib/Stem/AsyncIO.pm
   Stem::Boot:
     file: lib/Stem/Boot.pm
   Stem::Cell:
-    file: lib/Stem/Cell/Sequence.pm
+    file: lib/Stem/Cell.pm
   Stem::ChatLabel:
     file: lib/Stem/ChatLabel.pm
   Stem::Class:
@@ -50,19 +52,19 @@ provides:
   Stem::Event::Perl:
     file: lib/Stem/Event/Perl.pm
   Stem::Event::Plain:
-    file: lib/Stem/Event/Perl.pm
+    file: lib/Stem/Event/Tk.pm
   Stem::Event::Queue:
     file: lib/Stem/Event/Queue.pm
   Stem::Event::Read:
-    file: lib/Stem/Event.pm
+    file: lib/Stem/Event/Tk.pm
   Stem::Event::Signal:
     file: lib/Stem/Event/Signal.pm
   Stem::Event::Timer:
-    file: lib/Stem/Event.pm
+    file: lib/Stem/Event/Wx.pm
   Stem::Event::Tk:
     file: lib/Stem/Event/Tk.pm
   Stem::Event::Write:
-    file: lib/Stem/Event.pm
+    file: lib/Stem/Event/Tk.pm
   Stem::Event::Wx:
     file: lib/Stem/Event/Wx.pm
   Stem::Event::Wx::App:
@@ -129,4 +131,7 @@ provides:
     file: lib/Stem/Vars.pm
   Stem::WorkQueue:
     file: lib/Stem/WorkQueue.pm
-generated_by: Module::Build version 0.2611
+generated_by: Module::Build version 0.2808
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2

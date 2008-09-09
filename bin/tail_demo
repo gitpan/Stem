@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -s
+#!/usr/bin/env perl
 
 $line_cnt = 10 ;
 $offset = 175 ;
@@ -25,6 +25,9 @@ foreach my $log ( qw( foo bar bar_status ) ) {
 	unlink "$tail_dir/$log.log" ;
 }
 
+
+# So it can find the run_stem command we want...
+$ENV{PATH} = "./bin:$ENV{PATH}" ;
 
 foreach $cmd ( split /\n/, <<EOT ) {
 xterm -T Archive -n Archive -geometry 80x35+0+0 -e $ssfe $prompt run_stem $echo archive

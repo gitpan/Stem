@@ -1,7 +1,10 @@
-#!/usr/local/bin/perl
+#!/usr/bin/env perl
 
 use Getopt::Long ;
 use strict ;
+
+# In case we want to run this after ./Build and before ./Build install.
+use lib './blib/lib' ;
 
 use Stem ;
 
